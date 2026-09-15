@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智汇签 · 校园智能报销审批平台</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ 登录页 ============ -->
+<div id="login" class="login-wrap">
+  <div class="login-left">
+    <div class="login-brand">
+      <div class="brand-logo-lg">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4-8 4-8-4z" fill="#fff" opacity=".95"/><path d="M6 10v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M9.5 12.8l1.8 1.8 3.4-3.6" stroke="#2E5BFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h1>智汇签</h1>
+      <p>校园智能报销审批平台</p>
+    </div>
+    <ul class="login-slogan">
+      <li><b>线上提交</b> 票据拍照 OCR 识别，告别纸质打印</li>
+      <li><b>自动流转</b> 按报销类型智能路由审批人</li>
+      <li><b>全程可查</b> 进度实时追踪，超时自动催办</li>
+    </ul>
+    <div class="login-deco"></div>
+  </div>
+  <div class="login-right">
+    <div class="login-card">
+      <h2>统一身份认证登录</h2>
+      <p class="login-sub">使用校园账号登录，演示环境可选择角色一键体验</p>
+      <label class="field-label">账号</label>
+      <div class="input-box">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c0-3.3 3.6-5 8-5s8 1.7 8 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input type="text" value="2024010307" id="loginAccount">
+      </div>
+      <label class="field-label">密码</label>
+      <div class="input-box">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 018 0v3" stroke="currentColor" stroke-width="1.6"/></svg>
+        <input type="password" value="********">
+      </div>
+      <div class="login-row">
+        <label class="check"><input type="checkbox" checked> 记住账号</label>
+        <a>忘记密码？</a>
+      </div>
+      <button class="btn-primary btn-block" onclick="App.login()">登 录</button>
+      <div class="quick-roles">
+        <p>快速体验（切换演示角色）</p>
+        <div class="role-chips">
+          <button class="role-chip active" data-role="student">张同学 · 学生</button>
+          <button class="role-chip" data-role="teacher">王老师 · 教师</button>
+          <button class="role-chip" data-role="manager">李主任 · 部门主管</button>
+          <button class="role-chip" data-role="finance">陈会计 · 财务</button>
+          <button class="role-chip" data-role="leader">赵校长 · 校领导</button>
+        </div>
+      </div>
+    </div>
+    <p class="login-foot">© 2026 电子信息学院 · 智慧财务试点项目 · 数据加密传输，请放心使用</p>
+  </div>
+</div>
+
+<!-- ============ 主应用 ============ -->
+<div id="app" class="app" style="display:none">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4-8 4-8-4z" fill="#fff" opacity=".95"/><path d="M6 10v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+      <div><b>智汇签</b><span>智能报销平台</span></div>
+    </div>
+    <nav class="nav" id="nav">
+      <a class="nav-item active" data-page="dashboard">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
+        工作台
+      </a>
+      <a class="nav-item" data-page="create">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        发起报销
+      </a>
+      <a class="nav-item" data-page="mine">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 13h7M9 17h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        我的单据
+      </a>
+      <a class="nav-item" data-page="approval" data-roles="manager,finance,leader">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3 7-7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        审批中心
+        <em class="nav-badge" id="navTodoCount">3</em>
+      </a>
+      <a class="nav-item" data-page="finance" data-roles="finance,leader,admin">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 19h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        财务看板
+      </a>
+      <a class="nav-item" data-page="faq">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 9.5a2.5 2.5 0 014.5 1.5c0 1.5-2 2-2 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="17" r=".8" fill="currentColor"/></svg>
+        帮助中心
+      </a>
+    </nav>
+    <div class="sidebar-card" data-roles="student,teacher">
+      <div class="sc-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.5 5.5L20 9.3l-4 4 1 5.7L12 16l-5 3 1-5.7-4-4 5.5-.8L12 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+      <b>报销小贴士</b>
+      <p>提交前可预览完整审批链路，驳回后可在线修改，无需重新跑流程。</p>
+    </div>
+  </aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn" title="菜单">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="topbar-search">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <input placeholder="搜索单号 / 事由 / 项目编号…">
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" onclick="App.guide.start()" title="新手引导">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V6l8-3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn bell" title="通知">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 19a2 2 0 004 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <em>4</em>
+        </button>
+        <div class="role-switch" id="roleSwitch">
+          <span class="avatar" id="topAvatar">张</span>
+          <div class="role-meta"><b id="topName">张同学</b><span id="topRole">申请人 · 电子信息学院</span></div>
+          <svg class="caret" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <div class="role-menu" id="roleMenu">
+            <p class="rm-title">切换演示角色</p>
+            <a data-role="student"><span class="avatar sm av-blue">张</span>张同学 <i>学生</i></a>
+            <a data-role="teacher"><span class="avatar sm av-green">王</span>王老师 <i>教师 / 项目负责人</i></a>
+            <a data-role="manager"><span class="avatar sm av-orange">李</span>李主任 <i>部门主管</i></a>
+            <a data-role="finance"><span class="avatar sm av-purple">陈</span>陈会计 <i>财务审批人</i></a>
+            <a data-role="leader"><span class="avatar sm av-cyan">赵</span>赵校长 <i>校领导</i></a>
+            <div class="rm-divide"></div>
+            <a onclick="App.logout()"><svg viewBox="0 0 24 24" fill="none"><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M10 17l-5-5 5-5M5 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> 退出登录</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content" id="content">
+
+      <!-- ========== 工作台 ========== -->
+      <section class="page active" data-page="dashboard">
+        <div class="process-board">
+          <div class="pb-head">
+            <div class="pb-title">
+              <h2>� 报销进程看板</h2>
+              <p id="pbSub">正在审批中的单据，实时查看每个流程节点的当前位置</p>
+            </div>
+            <div class="pb-head-actions">
+              <button class="btn-ghost" onclick="App.go('mine')">查看全部单据</button>
+              <button class="btn-primary" onclick="App.go('create')"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>发起报销</button>
+            </div>
+          </div>
+          <div class="pb-legend">
+            <span><i class="dot done"></i>已完成</span>
+            <span><i class="dot current"></i>当前节点</span>
+            <span><i class="dot todo"></i>待处理</span>
+            <span><i class="dot reject"></i>已驳回</span>
+          </div>
+          <div class="pb-lanes" id="pbLanes"></div>
+        </div>
+
+        <div class="dash-cols">
+          <div class="panel">
+            <div class="panel-head">
+              <h3 id="dashListTitle">进行中的报销</h3>
+              <a onclick="App.go('mine')">全部单据 →</a>
+            </div>
+            <div id="dashList" class="mini-list"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>通知与公告</h3><a onclick="App.go('faq')">更多 →</a></div>
+            <ul class="notice-list">
+              <li><span class="nt-dot dot-red"></span><div><b>您的单据 BX20260910-018 被驳回</b><p>财务：缺少住宿费发票，请补充后重新提交（可在线修改）</p><time>09-12 10:24</time></div></li>
+              <li><span class="nt-dot dot-green"></span><div><b>报销款已到账 ¥860.00</b><p>迎新社团物料费已由出纳支付，请注意查收</p><time>09-11 16:02</time></div></li>
+              <li><span class="nt-dot dot-orange"></span><div><b>审批即将超时提醒</b><p>李主任有 1 张单据待处理超过 20 小时，系统将自动催办</p><time>09-15 09:00</time></div></li>
+              <li><span class="nt-dot dot-blue"></span><div><b>月末报销高峰提示</b><p>9月25日至30日为集中打款期，请尽量提前提交单据</p><time>09-14 18:00</time></div>
+            </ul>
+          </div>
+        </div>
+
+        <div class="stat-grid" id="dashStats"></div>
+
+        <h3 class="block-title"><span></span>选择报销类型 <em>按类型自动匹配审批链路</em></h3>
+        <div class="type-grid" id="typeGrid"></div>
+      </section>
+
+      <!-- ========== 发起报销（分步） ========== -->
+      <section class="page" data-page="create">
+        <div class="page-head">
+          <h2>发起报销</h2>
+          <p>按流程分步填写，信息自动保存草稿，随时可退出继续</p>
+        </div>
+        <div class="stepper" id="stepper">
+          <div class="step active" data-step="1"><i>1</i><span>选择类型</span></div>
+          <div class="step-line"></div>
+          <div class="step" data-step="2"><i>2</i><span>填写信息</span></div>
+          <div class="step-line"></div>
+          <div class="step" data-step="3"><i>3</i><span>上传票据 · OCR</span></div>
+          <div class="step-line"></div>
+          <div class="step" data-step="4"><i>4</i><span>预览链路并提交</span></div>
+        </div>
+
+        <div class="wizard-body">
+          <!-- 步骤1 -->
+          <div class="wstep active" data-step="1">
+            <div class="pick-grid" id="pickGrid"></div>
+            <div class="form-foot">
+              <button class="btn-ghost" onclick="App.go('dashboard')">取消</button>
+              <button class="btn-primary" id="toStep2" disabled>下一步</button>
+            </div>
+          </div>
+
+          <!-- 步骤2 -->
+          <div class="wstep" data-step="2">
+            <div class="form-card">
+              <h3 class="fc-title">基本信息</h3>
+              <div class="form-grid">
+                <div class="fg fg-reason">
+                  <label>报销事由 <em>*</em></label>
+                  <input id="fReason" placeholder="例如：赴杭州参加全国大学生电子设计竞赛">
+                </div>
+                <div>
+                  <label>申请部门 / 学院</label>
+                  <input value="电子信息学院" readonly>
+                </div>
+                <div>
+                  <label>申请人</label>
+                  <input value="张同学（2024010307）" readonly>
+                </div>
+                <div id="fgProject" style="display:none">
+                  <label>关联项目 / 预算编号 <em>*</em></label>
+                  <select id="fProject"><option>KY-2026-042 · 智能传感器研究（剩余 ¥58,200）</option><option>KY-2025-118 · 物联网教学改革（剩余 ¥12,600）</option></select>
+                </div>
+                <div id="fgPlace" style="display:none">
+                  <label>出差地点 <em>*</em></label>
+                  <input id="fPlace" placeholder="城市 / 会议地点">
+                </div>
+                <div id="fgDateStart" style="display:none">
+                  <label>开始日期 <em>*</em></label>
+                  <input type="date" value="2026-10-12">
+                </div>
+                <div id="fgDateEnd" style="display:none">
+                  <label>结束日期 <em>*</em></label>
+                  <input type="date" value="2026-10-14">
+                </div>
+                <div>
+                  <label>报销金额（元）<em>*</em></label>
+                  <input id="fAmount" type="number" placeholder="0.00" oninput="App.wizard.checkAmount()">
+                  <p class="field-hint" id="amountHint"></p>
+                </div>
+                <div>
+                  <label>收款账户</label>
+                  <input value="招商银行 6225 **** **** 3407" readonly>
+                </div>
+              </div>
+            </div>
+            <div class="form-card" id="detailCard"></div>
+            <div class="form-foot">
+              <button class="btn-ghost" onclick="App.wizard.goto(1)">上一步</button>
+              <button class="btn-primary" onclick="App.wizard.goto(3)">下一步</button>
+            </div>
+          </div>
+
+          <!-- 步骤3 -->
+          <div class="wstep" data-step="3">
+            <div class="upload-zone" id="uploadZone">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L8 8m4-4l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <p><b>点击上传或拖拽票据到此处</b></p>
+              <p class="uz-sub">支持 JPG / PNG / PDF，单张 ≤ 10MB；演示点击即可模拟拍照识别</p>
+              <button class="btn-primary" onclick="App.wizard.simulateOCR()">📷 模拟拍照识别</button>
+            </div>
+            <div id="ocrResult"></div>
+            <div class="form-foot">
+              <button class="btn-ghost" onclick="App.wizard.goto(2)">上一步</button>
+              <button class="btn-primary" id="toStep4" onclick="App.wizard.goto(4)" disabled>下一步</button>
+            </div>
+          </div>
+
+          <!-- 步骤4 -->
+          <div class="wstep" data-step="4">
+            <div class="confirm-grid">
+              <div class="form-card">
+                <h3 class="fc-title">单据摘要</h3>
+                <table class="summary-table" id="summaryTable"></table>
+                <div class="invoice-mini" id="confirmInvoice"></div>
+              </div>
+              <div class="form-card chain-card">
+                <h3 class="fc-title">审批链路预览 <em class="tag tag-blue">系统按类型与金额自动路由</em></h3>
+                <div class="chain-preview" id="chainPreview"></div>
+                <label class="cc-label">抄送人（可视不可批）</label>
+                <div class="cc-box"><span class="cc-person">王老师 <i>×</i></span><input placeholder="添加同事，收到进度同步通知"></div>
+                <div class="secure-note"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 018 0v3" stroke="currentColor" stroke-width="1.6"/></svg> 全程电子确认签署，数据加密存储，操作留痕可审计</div>
+              </div>
+            </div>
+            <div class="form-foot">
+              <button class="btn-ghost" onclick="App.wizard.goto(3)">上一步</button>
+              <button class="btn-ghost" onclick="toast('草稿已保存')">保存草稿</button>
+              <button class="btn-primary" onclick="App.wizard.submit()">确认提交</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 我的单据 ========== -->
+      <section class="page" data-page="mine">
+        <div class="page-head between">
+          <div><h2>我的单据</h2><p>极简列表默认展示单号、金额、状态与日期，点击任意行展开进度详情</p></div>
+          <div class="view-switch" id="viewSwitch">
+            <button class="vs-btn active" data-view="list">极简列表</button>
+            <button class="vs-btn" data-view="table">表格</button>
+            <button class="vs-btn" data-view="card">卡片</button>
+          </div>
+        </div>
+        <div class="filter-tabs" id="mineTabs"></div>
+        <div id="mineList" class="claim-list"></div>
+      </section>
+
+      <!-- ========== 审批中心 ========== -->
+      <section class="page" data-page="approval">
+        <div class="page-head between">
+          <div><h2>审批中心</h2><p id="approvalSub">待办单据集中处理，支持快速通过 / 驳回，超时单自动置顶催办</p></div>
+        </div>
+        <div class="filter-tabs" id="approvalTabs"></div>
+        <div id="approvalList" class="claim-list"></div>
+      </section>
+
+      <!-- ========== 财务看板 ========== -->
+      <section class="page" data-page="finance">
+        <div class="page-head between">
+          <div><h2>财务看板</h2><p>审批完成后自动归档，支持查询追溯与单据导出</p></div>
+          <div class="dash-tools">
+            <select class="mini-select"><option>2026 学年</option><option>2025 学年</option></select>
+            <button class="btn-ghost" onclick="toast('报销单与票据已导出为 Excel（演示）')"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> 导出报表</button>
+          </div>
+        </div>
+        <div class="kpi-grid" id="kpiGrid"></div>
+        <div class="chart-grid">
+          <div class="panel chart-panel wide">
+            <div class="panel-head"><h3>月度报销金额趋势</h3><div class="legend"><span><i class="lg-blue"></i>报销金额（万元）</span><span><i class="lg-green"></i>单据数</span></div></div>
+            <div id="chartTrend"></div>
+          </div>
+          <div class="panel chart-panel">
+            <div class="panel-head"><h3>报销类型分布</h3></div>
+            <div class="donut-wrap"><div id="chartDonut"></div><ul id="donutLegend"></ul></div>
+          </div>
+        </div>
+        <div class="chart-grid">
+          <div class="panel">
+            <div class="panel-head"><h3>部门报销金额 TOP 5</h3></div>
+            <div id="chartDept"></div>
+          </div>
+          <div class="panel wide">
+            <div class="panel-head"><h3>最近归档单据</h3><a>查看全部 →</a></div>
+            <table class="data-table" id="archiveTable"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 帮助中心 ========== -->
+      <section class="page" data-page="faq">
+        <div class="page-head"><h2>帮助中心</h2><p>首次使用可观看分步引导，常见问题随时可查</p></div>
+        <div class="faq-grid">
+          <div class="panel faq-guide-panel">
+            <h3>新手引导</h3>
+            <p>30 秒了解从发起到打款的完整流程</p>
+            <button class="btn-primary" onclick="App.guide.start()">▶ 重新播放引导</button>
+            <div class="guide-steps-mini">
+              <span>1 选类型</span><span>2 填信息</span><span>3 传票据</span><span>4 看链路</span><span>5 查进度</span>
+            </div>
+          </div>
+          <div class="panel faq-list-panel">
+            <h3>常见问题 FAQ</h3>
+            <div class="faq-items" id="faqItems"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 单据详情（抽屉） ========== -->
+      <div class="drawer-mask" id="drawerMask"></div>
+      <aside class="drawer" id="drawer"></aside>
+
+    </main>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- 新手引导遮罩 -->
+<div class="guide-overlay" id="guideOverlay" style="display:none">
+  <div class="guide-box">
+    <div class="guide-icon" id="guideIcon">📋</div>
+    <h3 id="guideTitle">选择报销类型</h3>
+    <p id="guideText">系统根据差旅、科研基金、大批采购等类型，自动匹配对应的审批链路，你不用再纠结「该找谁签字」。</p>
+    <div class="guide-dots" id="guideDots"></div>
+    <div class="guide-actions">
+      <button class="btn-ghost" onclick="App.guide.close()">跳过</button>
+      <button class="btn-primary" id="guideNext">下一步</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
