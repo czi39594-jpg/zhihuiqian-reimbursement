@@ -117,7 +117,7 @@
         <button class="icon-btn" onclick="App.guide.start()" title="新手引导">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V6l8-3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <button class="icon-btn bell" title="通知">
+        <button class="icon-btn bell" onclick="App.notice.open()" title="通知">
           <svg viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 19a2 2 0 004 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           <em>4</em>
         </button>
@@ -267,16 +267,59 @@
 
           <!-- 步骤3 -->
           <div class="wstep" data-step="3">
-            <div class="upload-zone" id="uploadZone">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L8 8m4-4l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              <p><b>点击上传或拖拽票据到此处</b></p>
-              <p class="uz-sub">支持 JPG / PNG / PDF，单张 ≤ 10MB；演示点击即可模拟拍照识别</p>
-              <button class="btn-primary" onclick="App.wizard.simulateOCR()">📷 模拟拍照识别</button>
+            <div class="form-card">
+              <h3 class="fc-title">票据信息
+                <button class="btn-ocr" onclick="App.wizard.simulateOCR()" title="拍照 / 上传发票，自动识别回填">
+                  📷 OCR 快速填写
+                </button>
+              </h3>
+              <p class="fc-sub">支持手动逐项填写，或点击右上角 OCR 按钮拍照识别后自动回填</p>
+              <div class="invoice-entry" id="invoiceEntry">
+                <div class="ie-empty" id="ieEmpty">
+                  <div class="ie-empty-ico">🧾</div>
+                  <div>
+                    <p><b>还未添加任何票据</b></p>
+                    <p class="ie-empty-sub">你可以手动填写下方表单，或用 OCR 拍照快速录入</p>
+                  </div>
+                </div>
+                <div class="ie-list" id="ieList"></div>
+              </div>
+
+              <div class="form-grid inv-form">
+                <div>
+                  <label>发票代码</label>
+                  <input id="invCode" placeholder="12 位发票代码">
+                </div>
+                <div>
+                  <label>发票号码</label>
+                  <input id="invNo" placeholder="8 位发票号码">
+                </div>
+                <div>
+                  <label>开票日期</label>
+                  <input id="invDate" type="date">
+                </div>
+                <div>
+                  <label>价税合计（元）</label>
+                  <input id="invAmt" type="number" placeholder="0.00" oninput="App.wizard.syncInvAmount()">
+                </div>
+                <div style="grid-column:1/-1">
+                  <label>销售方名称</label>
+                  <input id="invSeller" placeholder="如：杭州xx科技有限公司">
+                </div>
+                <div style="grid-column:1/-1">
+                  <label>项目 / 品名</label>
+                  <input id="invItem" placeholder="如：*运输服务*客运服务">
+                </div>
+              </div>
+
+              <div class="invoice-actions">
+                <button class="btn-ghost" onclick="App.wizard.addInvoice()"><b>+</b> 添加一张票据</button>
+                <span class="invoice-hint">已添加 <em id="invCount">0</em> 张 · 总金额 ¥<em id="invTotal">0.00</em></span>
+              </div>
             </div>
-            <div id="ocrResult"></div>
             <div class="form-foot">
               <button class="btn-ghost" onclick="App.wizard.goto(2)">上一步</button>
-              <button class="btn-primary" id="toStep4" onclick="App.wizard.goto(4)" disabled>下一步</button>
+              <button class="btn-primary" onclick="App.wizard.goto(4)">下一步</button>
             </div>
           </div>
 
@@ -414,6 +457,24 @@
   </div>
 </div>
 
+<!-- 通知抽屉 -->
+<div class="notice-drawer-mask" id="noticeMask" onclick="App.notice.close()"></div>
+<aside class="notice-drawer" id="noticeDrawer">
+  <div class="nd-head">
+    <h3>🔔 消息通知</h3>
+    <div class="nd-actions">
+      <button onclick="App.notice.readAll()">全部已读</button>
+      <button class="nd-close" onclick="App.notice.close()">✕</button>
+    </div>
+  </div>
+  <div class="nd-tabs" id="ndTabs">
+    <button class="active" data-tab="all" onclick="App.notice.switchTab('all')">全部</button>
+    <button data-tab="todo" onclick="App.notice.switchTab('todo')">待办 <em id="ndTodoCount">0</em></button>
+    <button data-tab="system" onclick="App.notice.switchTab('system')">系统</button>
+  </div>
+  <div class="nd-list" id="ndList"></div>
+</aside>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -431,6 +492,6 @@
   </div>
 </div>
 
-<script src="app.js?v=2"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
