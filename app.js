@@ -437,6 +437,8 @@ W.fillStep2 = function(){
   $('#fgPlace').style.display = travelLike ? '' : 'none';
   $('#fgDateStart').style.display = travelLike ? '' : 'none';
   $('#fgDateEnd').style.display = travelLike ? '' : 'none';
+  // 差旅专用：出差申请卡片（与报销合并）
+  $('#travelApply').style.display = travelLike ? '' : 'none';
   W.checkAmount();
   // 动态明细表
   const tableMap = {
@@ -447,13 +449,98 @@ W.fillStep2 = function(){
   };
   const m = tableMap[W.type];
   $('#detailCard').innerHTML = `
-    <h3 class="fc-title">${W.type==='travel'?'行程明细':W.type==='fund'?'费用清单':'采购清单'}
+    <h3 class="fc-title">${W.type==='travel'?'费用明细 / 票据清单':W.type==='fund'?'费用清单':'采购清单'}
       <em class="tag tag-blue">可增删行</em></h3>
     <table class="detail-table">
       <thead><tr>${m.cols.map(c=>`<th>${c}</th>`).join('')}<th style="width:40px"></th></tr></thead>
       <tbody>${m.rows.map(r=>`<tr>${r.map(v=>`<td><input value="${v}"></td>`).join('')}<td><span class="add-row-btn" onclick="this.closest('tr').remove()">🗑</span></td></tr>`).join('')}</tbody>
     </table>
     <button class="add-row-btn" onclick="W.addRow(${m.cols.length})">＋ 添加一行</button>`;
+};
+
+/* 导出当前表单 */
+W.exportForm = function(){
+  const data = {
+    __version: 1,
+    type: W.type,
+    typeLabel: TYPES[W.type]?.label,
+    reason: $('#fReason').value,
+    amount: $('#fAmount').value,
+    project: $('#fProject')?.value,
+    place: $('#fPlace')?.value,
+    dateStart: $('#fgDateStart')?.querySelector('input')?.value,
+    dateEnd: $('#fgDateEnd')?.querySelector('input')?.value,
+    // 差旅专属
+    travel: W.type==='travel' ? {
+      tReason: $('#tReason').value,
+      from: $('#tFrom').value, to: $('#tTo').value,
+      dateFrom: $('#tDateFrom').value, dateBack: $('#tDateBack').value,
+      transport: $('#tTransport').value,
+      companion: $('#tCompanion').value,
+      extra: $('#tExtra').value
+    } : null,
+    invoices: W.invoices,
+    exportedAt: new Date().toISOString().slice(0,19).replace('T',' ')
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const typeCn = TYPES[W.type]?.label || '报销';
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `报销单_${typeCn}_${date}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('已导出为 JSON 文件');
+};
+
+/* 导入表单数据 */
+W.importForm = function(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data.type) throw new Error('文件格式不正确');
+      // 切换到对应类型
+      W.type = data.type;
+      // pick 选中态
+      $$('.pick-card').forEach(el => el.classList.toggle('sel', el.dataset.type === data.type));
+      $('#toStep2').disabled = false;
+      // 跳到步骤2并填充
+      W.goto(2);
+      setTimeout(()=>{
+        $('#fReason').value = data.reason || '';
+        $('#fAmount').value = data.amount || '';
+        if(data.place) $('#fPlace').value = data.place;
+        // 日期字段是 input type=date，直接用 querySelector 拿
+        const dsInput = document.querySelector('#fgDateStart input'); if(dsInput) dsInput.value = data.dateStart || '';
+        const deInput = document.querySelector('#fgDateEnd input'); if(deInput) deInput.value = data.dateEnd || '';
+        // 差旅专属字段
+        if(data.travel && W.type==='travel'){
+          $('#tReason').value = data.travel.tReason || '';
+          $('#tFrom').value = data.travel.from || '';
+          $('#tTo').value = data.travel.to || '';
+          $('#tDateFrom').value = data.travel.dateFrom || '';
+          $('#tDateBack').value = data.travel.dateBack || '';
+          $('#tTransport').value = data.travel.transport || '高铁 / 火车';
+          $('#tCompanion').value = data.travel.companion || '';
+          $('#tExtra').value = data.travel.extra || '';
+        }
+        // 票据
+        if(Array.isArray(data.invoices) && data.invoices.length){
+          W.invoices = data.invoices;
+          W.renderInvoices();
+        }
+        W.checkAmount();
+        toast('已从 JSON 导入数据');
+      }, 50);
+    } catch(err){
+      toast('导入失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  input.value = ''; // 重置以便重选同一文件
 };
 
 W.addRow = function(cols){
