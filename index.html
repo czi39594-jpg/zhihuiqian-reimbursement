@@ -217,7 +217,13 @@
           <!-- 步骤2 -->
           <div class="wstep" data-step="2">
             <div class="form-card">
-              <h3 class="fc-title">基本信息</h3>
+              <h3 class="fc-title">基本信息
+                <span style="display:flex;gap:8px">
+                  <button class="btn-ghost btn-sm" onclick="App.wizard.exportForm()" title="导出当前表单为 JSON">⬇ 导出</button>
+                  <button class="btn-ghost btn-sm" onclick="document.getElementById('importFile').click()" title="从 JSON 导入已有单据">⬆ 导入</button>
+                  <input type="file" id="importFile" accept=".json" style="display:none" onchange="App.wizard.importForm(this)">
+                </span>
+              </h3>
               <div class="form-grid">
                 <div class="fg fg-reason">
                   <label>报销事由 <em>*</em></label>
@@ -258,6 +264,48 @@
                 </div>
               </div>
             </div>
+
+            <!-- 差旅专用：出差申请 + 报销一体化 -->
+            <div class="form-card travel-apply" id="travelApply" style="display:none">
+              <h3 class="fc-title">🧳 出差申请（与报销合并提交）
+                <em class="tag tag-orange">出差回来一次交齐</em></h3>
+              <p class="fc-sub">差旅报销不再需要提前单独提交出差申请单，回来后一次性填写「出行事由 → 行程明细 → 费用报销」即可</p>
+              <div class="form-grid">
+                <div style="grid-column:1/-1">
+                  <label>出行事由 <em>*</em></label>
+                  <input id="tReason" placeholder="例如：参加全国大学生电子设计竞赛决赛">
+                </div>
+                <div>
+                  <label>出发地</label>
+                  <input id="tFrom" placeholder="学校 / 所在城市" value="杭州市">
+                </div>
+                <div>
+                  <label>目的地 <em>*</em></label>
+                  <input id="tTo" placeholder="例如：南京市">
+                </div>
+                <div>
+                  <label>出发日期 <em>*</em></label>
+                  <input id="tDateFrom" type="date" value="2026-10-12">
+                </div>
+                <div>
+                  <label>返回日期 <em>*</em></label>
+                  <input id="tDateBack" type="date" value="2026-10-14">
+                </div>
+                <div>
+                  <label>交通方式</label>
+                  <select id="tTransport"><option>高铁 / 火车</option><option>飞机</option><option>长途汽车</option><option>自驾</option><option>出租车</option><option>多种方式</option></select>
+                </div>
+                <div>
+                  <label>同行人</label>
+                  <input id="tCompanion" placeholder="选填，多人用逗号分隔" value="李同学,王同学">
+                </div>
+                <div style="grid-column:1/-1">
+                  <label>住宿 / 餐饮 / 补贴说明</label>
+                  <textarea id="tExtra" rows="2" placeholder="例如：住宿标准 ¥300/间/夜 × 2 晚；餐饮补贴 ¥100/天 × 3 天；无其他杂费"></textarea>
+                </div>
+              </div>
+            </div>
+
             <div class="form-card" id="detailCard"></div>
             <div class="form-foot">
               <button class="btn-ghost" onclick="App.wizard.goto(1)">上一步</button>
@@ -492,6 +540,6 @@
   </div>
 </div>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
