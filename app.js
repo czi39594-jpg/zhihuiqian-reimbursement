@@ -227,6 +227,8 @@ App.switchRole = function(role){
   // 同步登录页选中态
   $$('.role-chip').forEach(c => c.classList.toggle('active', c.dataset.role === role));
   App.applyRole();
+  App.notice.reloadByRole();
+  App.notice.updateBellBadge();
   toast('已切换为：' + ROLES[role].name);
 };
 
@@ -383,11 +385,11 @@ function processLane(c){
 }
 
 /* ---------------- 发起报销：分步向导 ---------------- */
-const W = { type:null, step:1, ocrDone:false };
+const W = { type:null, step:1, invoices:[] };
 
 App.startCreate = function(type){
   App.go('create');
-  W.type = type; W.step = 1; W.ocrDone = false;
+  W.type = type; W.step = 1; W.invoices = [];
   // pick 选中
   $$('.pick-card').forEach(el => el.classList.toggle('sel', el.dataset.type === type));
   $('#toStep2').disabled = !type;
@@ -475,48 +477,119 @@ W.checkAmount = function(){
   }
 };
 
-/* OCR 模拟 */
+/* OCR 模拟：全屏进度遮罩 + 识别后自动回填 */
+W.invoices = []; // 票据列表
+
 W.simulateOCR = function(){
-  const box = $('#ocrResult');
-  box.innerHTML = `<div class="ocr-card">
-    <div class="ocr-head"><div class="spin"></div>
-      <div><b>OCR 智能识别中…</b><br><span>正在识别发票要素，并联网校验发票真伪</span></div></div>
+  // 全屏进度遮罩
+  const overlay = document.createElement('div');
+  overlay.className = 'ocr-overlay';
+  overlay.innerHTML = `<div class="ocr-progress">
+    <div class="spin"></div>
+    <b>AI 正在识别发票…</b>
+    <span>OCR + 二维码验真 + 重复报销校验</span>
+    <div class="ocr-progress-bar"><div class="fill" id="ocrBar"></div></div>
   </div>`;
-  $('#toStep4').disabled = true;
-  W.ocrDone = false;
-  setTimeout(() => {
-    const amt = ($('#fAmount').value || '1286.50');
-    box.innerHTML = `<div class="ocr-card">
-      <div class="ocr-head">
-        <div class="tc-ico" style="background:${COLORS.green[0]};color:${COLORS.green[1]}">🧾</div>
-        <div><b>识别完成，已自动填入</b><br><span>共识别 1 张发票，字段置信度 98.6%，请核对校正</span></div>
-      </div>
-      <div class="ocr-body">
-        <div class="invoice-thumb"><div class="inv-paper">
-          <div class="inv-title">增 值 税 电 子 普 通 发 票</div>
-          <div class="inv-sub">发票代码：033001900111</div>
-          <div class="inv-row"><span>购买方</span><span>电子信息学院</span></div>
-          <div class="inv-row"><span>销售方</span><span>杭州xx科技有限公司</span></div>
-          <div class="inv-row"><span>项目</span><span>*运输服务*客运服务</span></div>
-          <div class="inv-row"><span>开票日期</span><span>2026-10-12</span></div>
-          <div class="inv-row"><span>价税合计</span><span>￥${amt}</span></div>
-          <div class="inv-seal">全国统一<br>发票监制</div>
-        </div></div>
-        <div class="ocr-fields">
-          <div class="ocr-field"><label>发票代码 <span class="ok">✓ 已识别</span></label><input value="033001900111"></div>
-          <div class="ocr-field"><label>发票号码 <span class="ok">✓ 已识别</span></label><input value="No.48291036"></div>
-          <div class="ocr-field"><label>开票日期 <span class="ok">✓ 已识别</span></label><input value="2026-10-12"></div>
-          <div class="ocr-field"><label>价税合计 <span class="ok">✓ 已识别</span></label><input value="${amt}"></div>
-          <div class="ocr-field" style="grid-column:1/-1"><label>销售方名称 <span class="ok">✓ 已识别</span></label><input value="铁路客运 / 杭州xx票务代理有限公司"></div>
-          <div class="ocr-verify"><div class="qr"></div>二维码验真通过 · 该发票真实存在且未重复报销（查验时间 2026-09-15）</div>
-        </div>
-      </div>
-    </div>`;
-    W.ocrDone = true;
-    $('#toStep4').disabled = false;
-    toast('发票识别完成，请核对信息');
-  }, 1400);
+  document.body.appendChild(overlay);
+
+  const bar = overlay.querySelector('#ocrBar');
+  let p = 0;
+  const timer = setInterval(()=>{
+    p += Math.random()*18+6;
+    if(p >= 100){ p = 100; clearInterval(timer); }
+    bar.style.width = p + '%';
+  }, 120);
+
+  setTimeout(()=>{
+    overlay.remove();
+    // 识别结果 → 回填到表单
+    const amt = '1286.50';
+    $('#invCode').value = '033001900111';
+    $('#invNo').value = '48291036';
+    $('#invDate').value = '2026-10-12';
+    $('#invAmt').value = amt;
+    $('#invSeller').value = '杭州xx科技有限公司';
+    $('#invItem').value = '*运输服务*客运服务';
+    W.syncInvAmount();
+    // 自动加入列表
+    W.addInvoice(true);
+    // 顶部滑入成功卡片
+    const card = document.createElement('div');
+    card.className = 'ocr-success-card';
+    card.innerHTML = `<div class="ok-ico">✓</div>
+      <div><b>识别完成，已自动回填</b><span>发票代码 033001900111 · ¥${amt} · 验真通过</span></div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <button onclick="this.closest('.ocr-success-card').remove()" style="background:none;border:none;color:var(--ink-3);font-size:11px;cursor:pointer">关闭</button>
+      </div>`;
+    document.body.appendChild(card);
+    setTimeout(()=>card.remove(), 6000);
+  }, 1600);
 };
+
+W.syncInvAmount = function(){
+  const amt = parseFloat($('#invAmt').value) || 0;
+  // 更新已存在最后一张的金额
+  if(W.invoices.length > 0){
+    const last = W.invoices[W.invoices.length-1];
+    last.amt = amt;
+  }
+  W.renderInvoices();
+};
+
+W.addInvoice = function(auto){
+  const code = $('#invCode').value.trim();
+  const no = $('#invNo').value.trim();
+  const date = $('#invDate').value;
+  const amt = parseFloat($('#invAmt').value) || 0;
+  const seller = $('#invSeller').value.trim();
+  const item = $('#invItem').value.trim();
+  if(!auto && !code && !no && amt===0){ toast('请先填写至少一个字段'); return; }
+
+  W.invoices.push({ code, no, date, amt, seller, item });
+  W.renderInvoices();
+
+  // 清空表单（保留空状态下次好填）
+  $('#invCode').value = '';
+  $('#invNo').value = '';
+  $('#invDate').value = '';
+  $('#invAmt').value = '';
+  $('#invSeller').value = '';
+  $('#invItem').value = '';
+
+  if(!auto) toast('已添加一张票据');
+};
+
+W.renderInvoices = function(){
+  const list = W.invoices;
+  const $empty = $('#ieEmpty');
+  const $list = $('#ieList');
+  if(list.length === 0){
+    $empty.style.display = 'flex';
+    $list.innerHTML = '';
+  } else {
+    $empty.style.display = 'none';
+    $list.innerHTML = list.map((inv,i)=>`
+      <div class="ie-item">
+        <div class="ie-thumb">🧾</div>
+        <div class="ie-info">
+          <b>${inv.no || inv.code || '未知发票'}</b>
+          <span>${inv.seller || inv.item || '—'} · ${inv.date || '—'}</span>
+        </div>
+        <div class="ie-amt">¥${inv.amt.toFixed(2)}</div>
+        <div class="ie-del" onclick="App.wizard.removeInvoice(${i})">🗑</div>
+      </div>`).join('');
+  }
+  const total = list.reduce((s,x)=>s+x.amt, 0);
+  $('#invCount').textContent = list.length;
+  $('#invTotal').textContent = total.toFixed(2);
+};
+
+W.removeInvoice = function(i){
+  W.invoices.splice(i,1);
+  W.renderInvoices();
+};
+
+/* 旧的 uploadZone 事件绑定移除（不再需要） */
 
 W.fillStep4 = function(){
   const t = TYPES[W.type];
@@ -574,15 +647,174 @@ W.submit = function(){
     sla:'剩余 1 个工作日', slaWarn:false,
     place: W.type==='travel' ? ($('#fPlace').value||'杭州') : '—',
     project: W.type==='fund' ? $('#fProject').value : '—',
-    invoices:['电子发票 ￥' + amt], chain});
+    invoices: W.invoices.length ? W.invoices.map(i=>`${i.seller||i.item||'发票'} ￥${i.amt}`).join(', ') : '电子发票 ￥' + amt, chain});
   // 重置
-  $('#fReason').value = ''; $('#fAmount').value = ''; $('#ocrResult').innerHTML = '';
-  W.type = null; W.ocrDone = false;
+  $('#fReason').value = ''; $('#fAmount').value = '';
+  W.type = null; W.invoices = []; W.renderInvoices();
   toast('提交成功！单据 ' + id + ' 已进入审批流程');
+  // 提交后生成新通知
+  App.notice.addAfterSubmit(id, W.type, amt);
   App.applyRole();
   App.go('mine');
 };
 App.wizard = W;
+
+/* ---------------- 通知系统 ---------------- */
+const NOTIFY_SEEDS = {
+  student: [
+    {type:'todo', ico:'📋', tag:'t-todo', title:'你的报销单 BX20260915-018 等待审批人确认', desc:'事由：赴杭州参加电子设计竞赛 · 已提交 4 小时', time:'10 分钟前', unread:true, data:'BX20260915-018'},
+    {type:'todo', ico:'⏰', tag:'t-urgent', title:'单据 BX20260914-009 即将超时', desc:'审批人 李主任 已 12 小时未处理，请耐心等待或稍后催办', time:'2 小时前', unread:true, data:'BX20260914-009'},
+    {type:'system', ico:'✅', tag:'t-success', title:'单据 BX20260913-021 已通过部门主管审批', desc:'当前环节：财务审核 · 预计 1 个工作日内完成', time:'5 小时前', unread:true, data:'BX20260913-021'},
+    {type:'system', ico:'💬', tag:'t-info', title:'系统公告：国庆假期报销受理安排', desc:'10 月 1 日 - 7 日财务窗口暂停，9 日起恢复办理', time:'昨天 17:30', unread:false, data:null},
+    {type:'todo', ico:'↩️', tag:'t-urgent', title:'单据 BX20260910-017 被驳回，需要补充材料', desc:'财务意见：缺少住宿费发票，请在线修改重提，无需重新打印', time:'2 天前', unread:false, data:'BX20260910-017'}
+  ],
+  teacher: [
+    {type:'todo', ico:'📋', tag:'t-todo', title:'你有 3 条待审批的报销单', desc:'电子信息学院学生提交，最新一条：学生社团活动经费 ¥680.00', time:'刚刚', unread:true, data:null},
+    {type:'system', ico:'✅', tag:'t-success', title:'你审批通过的 BX20260912-015 已流转到财务', desc:'学生：李同学 · 事由：科研基金采购 · 金额 ¥3,160', time:'3 小时前', unread:false, data:'BX20260912-015'},
+    {type:'system', ico:'💬', tag:'t-info', title:'系统公告：审批时限提醒', desc:'请在 24 小时内处理待办，超时将自动催办', time:'昨天', unread:false, data:null}
+  ],
+  manager: [
+    {type:'todo', ico:'📋', tag:'t-todo', title:'你有 5 条待审批单据', desc:'其中 2 条即将超时，建议尽快处理', time:'15 分钟前', unread:true, data:null},
+    {type:'todo', ico:'⏰', tag:'t-urgent', title:'⚠ BX20260911-023 审批超时', desc:'差旅报销 ¥4,280 · 已 36 小时未处理，系统将升级给分管领导', time:'1 小时前', unread:true, data:'BX20260911-023'},
+    {type:'system', ico:'📊', tag:'t-info', title:'本周部门报销统计已生成', desc:'共 23 笔，总金额 ¥86,420，同比上周 +12%', time:'昨天', unread:false, data:null}
+  ],
+  finance: [
+    {type:'todo', ico:'💰', tag:'t-todo', title:'你有 8 张待审核票据', desc:'含 1 张大额（≥1 万）和 3 张差旅发票', time:'5 分钟前', unread:true, data:null},
+    {type:'todo', ico:'📋', tag:'t-todo', title:'BX20260915-003 等待打款', desc:'金额 ¥12,860.00 · 所有审批节点已通过，请发起银行转账', time:'刚刚', unread:true, data:'BX20260915-003'},
+    {type:'system', ico:'⚠️', tag:'t-urgent', title:'BX20260914-019 发票重复报销', desc:'与历史单据 BX20260828-011 发票代码号码一致，已自动拦截', time:'2 小时前', unread:true, data:'BX20260914-019'},
+    {type:'system', ico:'📊', tag:'t-info', title:'月度财务报表已生成', desc:'9 月报销总额 ¥128.6 万，较上月 +8.3%', time:'今天 09:00', unread:false, data:null}
+  ],
+  leader: [
+    {type:'todo', ico:'👑', tag:'t-todo', title:'你有 2 条大额单据待最终审批', desc:'单笔 ≥ 5 万元，需要你和分管副校长双签', time:'20 分钟前', unread:true, data:null},
+    {type:'system', ico:'✅', tag:'t-success', title:'BX20260912-028 已完成全部审批', desc:'采购 20 台显示器 ¥42,800，待出纳打款', time:'4 小时前', unread:false, data:'BX20260912-028'},
+    {type:'system', ico:'📊', tag:'t-info', title:'校级报销周报已送达', desc:'本周全校报销 126 笔，总金额 ¥328 万', time:'今天 08:00', unread:false, data:null}
+  ]
+};
+
+App.notice = {
+  tab: 'all',
+  list: [],
+
+  init(){
+    this.reloadByRole();
+    this.updateBellBadge();
+  },
+
+  reloadByRole(){
+    this.list = JSON.parse(JSON.stringify(NOTIFY_SEEDS[App.role] || NOTIFY_SEEDS.student));
+  },
+
+  open(){
+    $('#noticeDrawer').classList.add('open');
+    $('#noticeMask').classList.add('open');
+    this.render();
+  },
+
+  close(){
+    $('#noticeDrawer').classList.remove('open');
+    $('#noticeMask').classList.remove('open');
+  },
+
+  switchTab(tab){
+    this.tab = tab;
+    $$('#ndTabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+    this.render();
+  },
+
+  render(){
+    let items = this.list;
+    if(this.tab === 'todo') items = items.filter(n=>n.type==='todo');
+    if(this.tab === 'system') items = items.filter(n=>n.type==='system');
+
+    const todoCount = this.list.filter(n=>n.type==='todo' && n.unread).length;
+    $('#ndTodoCount').textContent = todoCount;
+
+    if(items.length === 0){
+      $('#ndList').innerHTML = `<div class="nd-empty"><div class="nd-empty-ico">🎉</div><div>暂无${this.tab==='todo'?'待办':''}通知</div></div>`;
+      return;
+    }
+    $('#ndList').innerHTML = items.map((n,i)=>`
+      <div class="nd-item ${n.unread?'unread':''}" onclick="App.notice.readOne(${i}, '${n.data||''}')">
+        <div class="nd-ico" style="background:${this.icoBg(n.type)}">${n.ico}</div>
+        <div class="nd-body">
+          <div class="nd-title">${n.title} <span class="nd-tag ${n.tag}">${this.typeLabel(n.type)}</span></div>
+          <div class="nd-desc">${n.desc}</div>
+          <div class="nd-time">${n.time}</div>
+        </div>
+      </div>`).join('');
+  },
+
+  icoBg(type){
+    return type==='todo' ? '#FEF3C7' : type==='system' ? '#DBEAFE' : '#F3F4F6';
+  },
+
+  typeLabel(type){
+    return {todo:'待办', system:'系统', urgent:'紧急'}[type] || '通知';
+  },
+
+  readOne(i, claimId){
+    // 找到真实索引（因为过滤后的 items 索引和 list 不一样）
+    let realIdx = i;
+    let items = this.list;
+    if(this.tab === 'todo') items = items.filter(n=>n.type==='todo');
+    if(this.tab === 'system') items = items.filter(n=>n.type==='system');
+    const target = items[i];
+    realIdx = this.list.indexOf(target);
+    if(realIdx >= 0){
+      this.list[realIdx].unread = false;
+      this.updateBellBadge();
+      this.render();
+    }
+    // 如果有单据号 → 跳转
+    if(claimId && claimId.startsWith('BX')){
+      App.closeDrawer();
+      App.notice.close();
+      App.go('mine');
+      // 高亮那条
+      setTimeout(()=>{
+        const row = document.querySelector(`[data-claim-id="${claimId}"]`);
+        if(row){ row.scrollIntoView({behavior:'smooth', block:'center'}); row.style.boxShadow='0 0 0 2px var(--primary)'; setTimeout(()=>row.style.boxShadow='', 2500); }
+      }, 300);
+    }
+  },
+
+  readAll(){
+    this.list.forEach(n=>n.unread=false);
+    this.updateBellBadge();
+    this.render();
+    toast('已全部标记为已读');
+  },
+
+  updateBellBadge(){
+    const unread = this.list.filter(n=>n.unread).length;
+    const $bell = document.querySelector('.icon-btn.bell em');
+    if(!$bell) return;
+    if(unread === 0){ $bell.style.display = 'none'; }
+    else { $bell.style.display = ''; $bell.textContent = unread > 99 ? '99+' : unread; }
+  },
+
+  addAfterSubmit(id, type, amt){
+    const typeName = TYPES[type]?.label || '报销';
+    this.list.unshift({
+      type:'system', ico:'✅', tag:'t-success',
+      title:`你的${typeName}单 ${id} 已提交成功`,
+      desc:`金额 ¥${amt.toFixed(2)} · 当前等待 ${CLAIMS[0].chain[1][0]} 审批`,
+      time:'刚刚', unread:true, data:id
+    });
+    // 3 秒后再来一条"审批提醒"模拟
+    setTimeout(()=>{
+      this.list.unshift({
+        type:'todo', ico:'📋', tag:'t-todo',
+        title:`新单据 ${id} 等待你的处理人审批`,
+        desc:'系统已自动推送通知给第一个审批节点，请耐心等待',
+        time:'刚刚', unread:true, data:id
+      });
+      this.updateBellBadge();
+      this.render();
+    }, 3000);
+    this.updateBellBadge();
+  }
+};
 
 /* ---------------- 我的单据 ---------------- */
 App.renderMine = function(){
@@ -1091,6 +1323,10 @@ function init(){
   bindNav();
   renderPickGrid();
   App.faq.renderCategories();
+  App.notice.init();
+
+  // 票据表单监听
+  $('#invAmt')?.addEventListener('input', ()=>W.syncInvAmount());
 
   // 移动端菜单
   $('#menuBtn').onclick = () => document.querySelector('.sidebar').classList.toggle('show');
@@ -1114,13 +1350,10 @@ function init(){
   document.addEventListener('click', e=>{
     if (!e.target.closest('#roleSwitch')) $('#roleSwitch').classList.remove('open');
   });
-  // 拖拽上传
-  const uz = $('#uploadZone');
-  uz.addEventListener('dragover', e=>{ e.preventDefault(); uz.classList.add('drag'); });
-  uz.addEventListener('dragleave', ()=>uz.classList.remove('drag'));
-  uz.addEventListener('drop', e=>{ e.preventDefault(); uz.classList.remove('drag'); W.simulateOCR(); });
   // 抽屉
   $('#drawerMask').onclick = ()=>App.closeDrawer();
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape') App.closeDrawer(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') { App.closeDrawer(); App.notice.close(); } });
+  // 通知抽屉点击外部关闭
+  $('#noticeMask').onclick = ()=>App.notice.close();
 }
 document.addEventListener('DOMContentLoaded', init);
