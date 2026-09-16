@@ -893,23 +893,174 @@ App.renderFinance = function(animate){
       <td><span class="tag tag-green">已归档</span></td></tr>`).join('')}</tbody>`;
 };
 
-/* ---------------- FAQ ---------------- */
-const FAQ = [
-  ['我是新生，不清楚报销流程怎么办？','在「发起报销」页面选择报销类型后，系统会自动显示完整审批链路，并在每一步给出填写指引；也可以随时点击右上角盾牌图标观看 30 秒新手引导。'],
-  ['票据被财务退回后，需要重新打印跑一遍吗？','不需要。驳回单据会在「我的单据 - 已驳回」中标注原因，点击「在线修改重提」即可补充材料，审批记录全程保留，无需重新打印。'],
-  ['审批人出差 / 开会来不及签字怎么办？','审批通知会自动推送给审批人，支持手机端一键通过；超过处理时限系统自动催办，持续超时将自动升级给上级审批人。'],
-  ['发票需要自己查验真伪吗？','上传发票后系统通过 OCR 自动识别发票要素，并联网进行二维码验真与重复报销校验，验真结果直接展示在票据旁。'],
-  ['大额报销会有什么不同？','单笔金额 ≥ 1 万元时，系统在提交前的链路预览中自动插入「校领导」审批节点，无需自己判断该找谁。'],
-  ['多久可以收到报销款？','核心时效目标为 1-5 个工作日；学生活动、竞赛类报销设有快速通道，各节点处理时限在链路中全程公开。'],
-  ['我的票据和银行信息安全吗？','全链路数据加密传输与存储，按角色严格授权访问，所有查看、审批、导出操作均留痕可审计。']
+/* ---------------- FAQ 知识库 ---------------- */
+const FAQ_KNOWLEDGE = [
+  // 流程引导
+  {q:'我是新生，不清楚报销流程怎么办？',a:'在「发起报销」页面选择报销类型后，系统会自动显示完整审批链路，并在每一步给出填写指引；也可以随时点击右上角盾牌图标观看 30 秒新手引导。',kw:['流程','新生','新手','怎么报销','步骤'],cat:'流程引导'},
+  {q:'报销单据从提交到打款需要多久？',a:'核心时效目标为 1-5 个工作日；学生活动、竞赛类报销设有快速通道，各节点处理时限在链路中全程公开，超时系统自动催办。',kw:['多久','时间','时效','打款','审批周期','几天'],cat:'流程引导'},
+  {q:'系统里的审批链路是固定的吗？',a:'不是固定的。系统根据报销类型（差旅/科研/采购/活动经费）和金额自动路由，例如单笔 ≥1 万元会自动插入「校领导」节点，无需自己判断找谁签字。',kw:['链路','流程','固定','找谁','审批人','路由'],cat:'流程引导'},
+
+  // 票据与 OCR
+  {q:'发票需要自己查验真伪吗？',a:'不需要。上传发票后系统通过 OCR 自动识别发票代码、号码、金额、日期等要素，并联网进行二维码验真与重复报销校验，验真结果直接展示在票据旁。',kw:['发票','验真','真伪','OCR','识别','查验'],cat:'票据与OCR'},
+  {q:'系统支持哪些票据格式？',a:'支持增值税普通发票/专用发票、火车票、机票行程单、定额发票、电子发票（PDF/图片）等主流格式，拍照清晰度建议 300dpi 以上，避免反光和模糊。',kw:['票据','格式','支持哪些','PDF','图片','电子发票'],cat:'票据与OCR'},
+  {q:'OCR 识别不准确怎么办？',a:'OCR 结果可手动修正，识别后会高亮显示可能有疑问的字段（如金额、日期），修改后系统会重新校验逻辑一致性（如金额是否含税）。',kw:['OCR','识别不准','修改','修正','错误'],cat:'票据与OCR'},
+  {q:'电子发票需要打印出来吗？',a:'不需要打印。系统支持直接上传 PDF 电子发票，会自动解析发票信息并进行验真，纸质发票拍照上传即可。',kw:['电子发票','打印','PDF','纸质'],cat:'票据与OCR'},
+
+  // 驳回与修改
+  {q:'票据被财务退回后，需要重新打印跑一遍吗？',a:'不需要。驳回单据会在「我的单据 - 已驳回」中标注具体原因（如缺住宿发票、金额不符），点击「在线修改重提」即可补充材料，审批记录全程保留。',kw:['驳回','退回','修改','重提','重新提交','被打回'],cat:'驳回与修改'},
+  {q:'驳回后可以修改哪些内容？',a:'除报销类型外，事由、金额、明细、票据都可以修改；如果原审批链路有节点因金额变化而增减（如超过 1 万加校领导），系统会自动重新计算链路。',kw:['驳回','修改','改金额','改票据','链路变化'],cat:'驳回与修改'},
+
+  // 大额与审批
+  {q:'大额报销会有什么不同？',a:'单笔金额 ≥ 1 万元时，系统在提交前的链路预览中自动插入「校领导」审批节点；≥ 5 万元还会增加财务总监预审，所有节点处理时限公开透明。',kw:['大额','1万','5万','校领导','金额','超标'],cat:'大额与审批'},
+  {q:'审批人出差/开会来不及签字怎么办？',a:'审批通知会自动推送给审批人（站内信 + 短信），支持手机端 H5 一键通过；超过处理时限系统自动催办，持续超时将自动升级给上级审批人代为处理。',kw:['审批人','出差','催办','超时','自动审批','代签'],cat:'大额与审批'},
+  {q:'可以同时抄送其他人吗？',a:'可以。提交前在抄送人一栏添加即可，被抄送人会收到通知但不影响审批流转；抄送记录在单据详情中留痕。',kw:['抄送','抄送人','通知'],cat:'大额与审批'},
+
+  // 财务与打款
+  {q:'报销款打到哪里？',a:'打到你在系统中绑定的银行卡（开户行 + 卡号 + 持卡人姓名），首次报销前需要先在「个人设置 - 银行卡」中添加并通过小额打款验证。',kw:['打款','银行卡','转账','开户行','卡号'],cat:'财务与打款'},
+  {q:'打款失败了怎么办？',a:'打款失败会在单据状态中标注原因（如卡号无效、账户冻结），你需要更新银行卡信息后，财务重新发起打款；不会重新走审批流程。',kw:['打款失败','转账失败','银行卡错误'],cat:'财务与打款'},
+  {q:'报销金额有上限吗？',a:'单笔无硬性上限，但 ≥ 10 万元的超大额需要提供额外的合同/协议材料，并增加财务总监和分管副校长双签节点。',kw:['上限','限额','10万','超大额'],cat:'财务与打款'},
+
+  // 安全与隐私
+  {q:'我的票据和银行信息安全吗？',a:'全链路数据加密传输（HTTPS + TLS 1.3）与存储（AES-256），按角色严格授权访问，所有查看、审批、导出操作均留痕可审计；系统通过等保三级认证。',kw:['安全','隐私','加密','泄露','等保','信息保护'],cat:'安全与隐私'},
+  {q:'可以撤回已提交的单据吗？',a:'在第一个审批人尚未处理前可以一键撤回；如果已有审批节点通过，则需要联系当前审批人驳回后再修改。撤回操作会留下日志。',kw:['撤回','撤销','取消提交'],cat:'安全与隐私'},
+
+  // 学生活动
+  {q:'学生社团活动经费怎么报销？',a:'选择「学生活动经费」类型，审批链路为：指导老师 → 团委/学生处 → 财务，5000 元以下走快速通道，1-2 个工作日即可完成。',kw:['社团','活动经费','学生','团委','指导老师'],cat:'学生活动'},
+  {q:'竞赛奖金/差旅费怎么报？',a:'选择「差旅费」类型，上传交通票据（火车票/机票）和住宿发票；竞赛类差旅可勾选「快速通道」，系统自动识别并缩短审批时限。',kw:['竞赛','差旅','奖金','比赛','差旅费'],cat:'学生活动'}
 ];
-App.renderFAQ = function(){
-  $('#faqItems').innerHTML = FAQ.map((f,i)=>`
-    <div class="faq-item ${i===0?'open':''}">
-      <button class="faq-q" onclick="this.parentElement.classList.toggle('open')">${f[0]}</button>
-      <div class="faq-a"><p>${f[1]}</p></div>
-    </div>`).join('');
+
+const FAQ_CATEGORIES = [
+  {icon:'📋',name:'流程引导',count:3,desc:'从发起到打款的完整步骤与时效'},
+  {icon:'🧾',name:'票据与OCR',count:4,desc:'发票上传、识别、验真相关问题'},
+  {icon:'✏️',name:'驳回与修改',count:2,desc:'被退回后如何在线修改重新提交'},
+  {icon:'💰',name:'大额与审批',count:3,desc:'大额报销的特殊流程与审批人'},
+  {icon:'🏦',name:'财务与打款',count:3,desc:'银行卡绑定、打款到账与失败处理'},
+  {icon:'🔒',name:'安全与隐私',count:2,desc:'数据加密、权限控制与操作留痕'},
+  {icon:'🎓',name:'学生活动',count:2,desc:'社团、竞赛等学生专属报销通道'}
+];
+
+/* FAQ 搜索引擎 */
+App.faq = {
+  lastResults: [],
+  renderCategories(){
+    $('#faqCategories').innerHTML = FAQ_CATEGORIES.map(c=>`
+      <div class="faq-cat" onclick="App.faq.searchByCat('${c.name}')">
+        <div class="faq-cat-icon">${c.icon}</div>
+        <div class="faq-cat-name">${c.name}</div>
+        <div class="faq-cat-count">${c.count} 条问答</div>
+        <div class="faq-cat-desc">${c.desc}</div>
+      </div>`).join('');
+  },
+
+  quickSearch(kw){ $('#faqSearchInput').value = kw; this.doSearch(); },
+
+  searchByCat(catName){
+    const items = FAQ_KNOWLEDGE.filter(f=>f.cat===catName);
+    this.showResults(catName+'（共 '+items.length+' 条）', items, catName);
+  },
+
+  doSearch(){
+    const kw = $('#faqSearchInput').value.trim();
+    if(!kw){ this.showDefault(); return; }
+
+    $('#faqDefault').style.display='none';
+    $('#faqSearching').style.display='block';
+    $('#faqAiThinking').style.display='flex';
+    $('#faqResultMeta').innerHTML = '';
+    $('#faqResultList').innerHTML = '';
+    $('#faqRecommend').style.display='none';
+
+    setTimeout(()=>{
+      $('#faqAiThinking').style.display='none';
+      this.runSearch(kw);
+    }, 600);
+  },
+
+  runSearch(kw){
+    // 简单中文分词：按 2/3/4 字滑窗切词 + 原词
+    const terms = new Set([kw]);
+    for(let len=2; len<=Math.min(4, kw.length); len++){
+      for(let i=0; i<=kw.length-len; i++) terms.add(kw.slice(i,i+len));
+    }
+    const termArr = [...terms].filter(t=>t.length>=2);
+
+    const scored = FAQ_KNOWLEDGE.map(f=>{
+      let score = 0;
+      const hits = [];
+      termArr.forEach(t=>{
+        if(f.q.includes(t)){ score += t.length * 3; hits.push(t); }
+        if(f.a.includes(t)){ score += t.length * 1.5; hits.push(t); }
+        if(f.kw.some(k=>k.includes(t)||t.includes(k))){ score += t.length * 4; hits.push(t); }
+      });
+      // 原词额外加权
+      if(f.q.includes(kw)) score += 10;
+      if(f.a.includes(kw)) score += 5;
+      if(f.kw.some(k=>k===kw)) score += 12;
+      return {f, score: Math.round(score*10)/10, hits: [...new Set(hits)]};
+    }).filter(r=>r.score>0).sort((a,b)=>b.score-a.score);
+
+    // 归一化分数到 0-2
+    const max = scored[0]?.score || 1;
+    scored.forEach(r=>r.score = Math.round((r.score/max)*200)/100);
+
+    if(scored.length === 0){
+      $('#faqResultMeta').innerHTML = `<span style="color:#EF4444">😢 未找到与 "<strong>${kw}</strong>" 相关的结果</span>`;
+      // 推荐同类热门
+      const recs = FAQ_KNOWLEDGE.sort(()=>Math.random()-0.5).slice(0,4);
+      $('#faqRecommend').style.display='block';
+      $('#faqRecommend').innerHTML = `<h4>💡 你可能想问这些：</h4>` + recs.map(r=>`<div class="faq-rec-item" onclick="App.faq.quickSearch('${r.q.slice(0,10)}')">${r.q}</div>`).join('');
+      $('#faqResultList').innerHTML = '';
+      return;
+    }
+
+    this.showResults(`<strong style="color:#10B981">✓ 找到 ${scored.length} 条</strong> 与 "<em>${kw}</em>" 相关的问答，按相关度排序`, scored, null);
+  },
+
+  showResults(metaHtml, results, highlightCat){
+    $('#faqDefault').style.display='none';
+    $('#faqSearching').style.display='block';
+    $('#faqResultMeta').innerHTML = metaHtml;
+    $('#faqAiThinking').style.display='none';
+    $('#faqRecommend').style.display='none';
+
+    $('#faqResultList').innerHTML = results.map((r,idx)=>{
+      const f = r.f || r;
+      const score = r.score;
+      const hits = r.hits || [];
+      const cat = f.cat;
+      // 高亮关键词
+      let qHtml = f.q, aHtml = f.a;
+      const allTerms = [...hits, highlightCat].filter(Boolean);
+      allTerms.forEach(t=>{
+        if(!t) return;
+        const safe = t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        qHtml = qHtml.replace(new RegExp(safe,'g'), m=>`<mark>${m}</mark>`);
+        aHtml = aHtml.replace(new RegExp(safe,'g'), m=>`<mark>${m}</mark>`);
+      });
+      const tags = [...new Set([cat, ...f.kw.slice(0,3)])];
+      return `<div class="faq-result-item" style="animation:pop .25s ease ${idx*.04}s both">
+        <div class="faq-result-q">
+          <span>Q：${qHtml}</span>
+          ${score!==undefined?`<span class="score">相关度 ${score}</span>`:''}
+        </div>
+        <div class="faq-result-a">A：${aHtml}</div>
+        <div class="faq-result-tags">${tags.map((t,i)=>`<span class="t ${i===0?'cat':''}">${t}</span>`).join('')}</div>
+      </div>`;
+    }).join('');
+  },
+
+  showDefault(){
+    $('#faqDefault').style.display='block';
+    $('#faqSearching').style.display='none';
+    $('#faqSearchInput').value = '';
+  }
 };
+
+/* 回车触发搜索 */
+document.addEventListener('DOMContentLoaded', ()=>{
+  const input = document.getElementById('faqSearchInput');
+  if(input) input.addEventListener('keydown', e=>{ if(e.key==='Enter') App.faq.doSearch(); });
+});
 
 /* ---------------- 新手引导 ---------------- */
 const GUIDE = [
@@ -939,7 +1090,7 @@ function init(){
   bindLoginChips();
   bindNav();
   renderPickGrid();
-  App.renderFAQ();
+  App.faq.renderCategories();
 
   // 移动端菜单
   $('#menuBtn').onclick = () => document.querySelector('.sidebar').classList.toggle('show');
