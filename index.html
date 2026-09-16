@@ -362,19 +362,46 @@
 
       <!-- ========== 帮助中心 ========== -->
       <section class="page" data-page="faq">
-        <div class="page-head"><h2>帮助中心</h2><p>首次使用可观看分步引导，常见问题随时可查</p></div>
-        <div class="faq-grid">
-          <div class="panel faq-guide-panel">
-            <h3>新手引导</h3>
-            <p>30 秒了解从发起到打款的完整流程</p>
-            <button class="btn-primary" onclick="App.guide.start()">▶ 重新播放引导</button>
-            <div class="guide-steps-mini">
-              <span>1 选类型</span><span>2 填信息</span><span>3 传票据</span><span>4 看链路</span><span>5 查进度</span>
-            </div>
+        <div class="page-head"><h2>帮助中心</h2><p>AI 智能问答 · 关键词搜答案 · 24h 在线</p></div>
+
+        <!-- 搜索区 -->
+        <div class="panel faq-search-panel">
+          <div class="faq-search-box">
+            <span class="faq-search-icon">🔍</span>
+            <input type="text" id="faqSearchInput" placeholder="输入你的问题，比如：发票怎么验真？大额报销需要谁审批？" autocomplete="off">
+            <button class="faq-search-btn" onclick="App.faq.doSearch()">搜索</button>
           </div>
-          <div class="panel faq-list-panel">
-            <h3>常见问题 FAQ</h3>
-            <div class="faq-items" id="faqItems"></div>
+          <div class="faq-hot-tags">
+            <span class="faq-hot-label">🔥 热门搜索：</span>
+            <button class="faq-tag" onclick="App.faq.quickSearch('发票验真')">发票验真</button>
+            <button class="faq-tag" onclick="App.faq.quickSearch('驳回修改')">驳回修改</button>
+            <button class="faq-tag" onclick="App.faq.quickSearch('大额报销')">大额报销</button>
+            <button class="faq-tag" onclick="App.faq.quickSearch('审批多久')">审批多久</button>
+            <button class="faq-tag" onclick="App.faq.quickSearch('OCR识别')">OCR 识别</button>
+            <button class="faq-tag" onclick="App.faq.quickSearch('催办')">催办</button>
+            <button class="faq-tag" onclick="App.faq.quickSearch('转账打款')">转账打款</button>
+          </div>
+        </div>
+
+        <!-- 结果区 -->
+        <div class="panel faq-result-panel" id="faqResultPanel">
+          <!-- 默认态：分类浏览 -->
+          <div class="faq-default" id="faqDefault">
+            <div class="faq-default-head">
+              <h3>📚 按分类浏览</h3>
+              <button class="faq-guide-entry" onclick="App.guide.start()">▶ 新手引导（30秒）</button>
+            </div>
+            <div class="faq-categories" id="faqCategories"></div>
+          </div>
+          <!-- 搜索态 -->
+          <div class="faq-searching" id="faqSearching" style="display:none">
+            <div class="faq-ai-thinking" id="faqAiThinking" style="display:none">
+              <span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span>
+              <span>AI 正在为你检索最佳答案…</span>
+            </div>
+            <div class="faq-result-meta" id="faqResultMeta"></div>
+            <div class="faq-result-list" id="faqResultList"></div>
+            <div class="faq-recommend" id="faqRecommend" style="display:none"></div>
           </div>
         </div>
       </section>
@@ -404,6 +431,6 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>
