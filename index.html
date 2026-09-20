@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>智汇签 · 校园智能报销审批平台</title>
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231E5C4F'/%3E%3Cpath d='M16 33l11 11 21-24' stroke='white' stroke-width='7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -13,7 +14,7 @@
   <div class="login-left">
     <div class="login-brand">
       <div class="brand-logo-lg">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4-8 4-8-4z" fill="#fff" opacity=".95"/><path d="M6 10v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M9.5 12.8l1.8 1.8 3.4-3.6" stroke="#2E5BFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7l8-4 8 4-8 4-8-4z" fill="#fff" opacity=".95"/><path d="M6 10v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M9.5 12.8l1.8 1.8 3.4-3.6" stroke="#1E5C4F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
       <h1>智汇签</h1>
       <p>校园智能报销审批平台</p>
@@ -23,35 +24,42 @@
       <li><b>自动流转</b> 按报销类型智能路由审批人</li>
       <li><b>全程可查</b> 进度实时追踪，超时自动催办</li>
     </ul>
-    <div class="login-deco"></div>
+    <p class="login-cite">摄影图片来自 Pexels 免费图库</p>
   </div>
   <div class="login-right">
     <div class="login-card">
       <h2>统一身份认证登录</h2>
-      <p class="login-sub">使用校园账号登录，演示环境可选择角色一键体验</p>
+      <p class="login-sub">使用校园账号登录（验证码不区分大小写），或点击下方演示账号快速填充</p>
       <label class="field-label">账号</label>
       <div class="input-box">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c0-3.3 3.6-5 8-5s8 1.7 8 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <input type="text" value="2024010307" id="loginAccount">
+        <input type="text" id="loginAccount" placeholder="校园账号（如 zhang）" autocomplete="username">
       </div>
       <label class="field-label">密码</label>
       <div class="input-box">
         <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 018 0v3" stroke="currentColor" stroke-width="1.6"/></svg>
-        <input type="password" value="********">
+        <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="current-password">
+      </div>
+      <label class="field-label">验证码</label>
+      <div class="input-box captcha-box">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7V4h4M20 17v3h-4M4 12a8 8 0 0114-4.9M20 12a8 8 0 01-14 4.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input type="text" id="loginCaptcha" placeholder="输入右侧验证码" maxlength="6" autocomplete="off">
+        <img id="captchaImg" alt="验证码" title="点击刷新" style="height:38px;border-radius:8px;cursor:pointer;border:1px solid #E5E7EB">
       </div>
       <div class="login-row">
         <label class="check"><input type="checkbox" checked> 记住账号</label>
-        <a>忘记密码？</a>
+        <span style="color:var(--ink-3)">演示账号密码统一 Campus@2026</span>
       </div>
-      <button class="btn-primary btn-block" onclick="App.login()">登 录</button>
+      <button class="btn-primary btn-block" id="loginBtn" onclick="App.login()">登 录</button>
       <div class="quick-roles">
-        <p>快速体验（切换演示角色）</p>
-        <div class="role-chips">
-          <button class="role-chip active" data-role="student">张同学 · 学生</button>
-          <button class="role-chip" data-role="teacher">王老师 · 教师</button>
-          <button class="role-chip" data-role="manager">李主任 · 部门主管</button>
-          <button class="role-chip" data-role="finance">陈会计 · 财务</button>
-          <button class="role-chip" data-role="leader">赵校长 · 校领导</button>
+        <p>快速体验（点击填充演示账号，密码自动填入，验证码请手动输入）</p>
+        <div class="role-chips" id="demoChips">
+          <button class="role-chip" data-demo="zhang">张同学 · 申请人</button>
+          <button class="role-chip" data-demo="wang">王老师 · 申请人</button>
+          <button class="role-chip" data-demo="li">李主任 · 部门领导</button>
+          <button class="role-chip" data-demo="zhou">周院长 · 学院审批</button>
+          <button class="role-chip" data-demo="chen">陈会计 · 财务</button>
+          <button class="role-chip" data-demo="admin">管理员</button>
         </div>
       </div>
     </div>
@@ -146,7 +154,7 @@
         <div class="process-board">
           <div class="pb-head">
             <div class="pb-title">
-              <h2>� 报销进程看板</h2>
+              <h2>报销进程看板</h2>
               <p id="pbSub">正在审批中的单据，实时查看每个流程节点的当前位置</p>
             </div>
             <div class="pb-head-actions">
@@ -173,12 +181,7 @@
           </div>
           <div class="panel">
             <div class="panel-head"><h3>通知与公告</h3><a onclick="App.go('faq')">更多 →</a></div>
-            <ul class="notice-list">
-              <li><span class="nt-dot dot-red"></span><div><b>您的单据 BX20260910-018 被驳回</b><p>财务：缺少住宿费发票，请补充后重新提交（可在线修改）</p><time>09-12 10:24</time></div></li>
-              <li><span class="nt-dot dot-green"></span><div><b>报销款已到账 ¥860.00</b><p>迎新社团物料费已由出纳支付，请注意查收</p><time>09-11 16:02</time></div></li>
-              <li><span class="nt-dot dot-orange"></span><div><b>审批即将超时提醒</b><p>李主任有 1 张单据待处理超过 20 小时，系统将自动催办</p><time>09-15 09:00</time></div></li>
-              <li><span class="nt-dot dot-blue"></span><div><b>月末报销高峰提示</b><p>9月25日至30日为集中打款期，请尽量提前提交单据</p><time>09-14 18:00</time></div>
-            </ul>
+            <ul class="notice-list" id="dashNotice"></ul>
           </div>
         </div>
 
@@ -239,7 +242,7 @@
                 </div>
                 <div id="fgProject" style="display:none">
                   <label>关联项目 / 预算编号 <em>*</em></label>
-                  <select id="fProject"><option>KY-2026-042 · 智能传感器研究（剩余 ¥58,200）</option><option>KY-2025-118 · 物联网教学改革（剩余 ¥12,600）</option></select>
+                  <select id="fProject"><option value="">加载中…</option></select>
                 </div>
                 <div id="fgPlace" style="display:none">
                   <label>出差地点 <em>*</em></label>
@@ -247,66 +250,25 @@
                 </div>
                 <div id="fgDateStart" style="display:none">
                   <label>开始日期 <em>*</em></label>
-                  <input type="date" value="2026-10-12">
+                  <input type="date">
                 </div>
                 <div id="fgDateEnd" style="display:none">
                   <label>结束日期 <em>*</em></label>
-                  <input type="date" value="2026-10-14">
+                  <input type="date">
                 </div>
-                <div>
-                  <label>报销金额（元）<em>*</em></label>
-                  <input id="fAmount" type="number" placeholder="0.00" oninput="App.wizard.checkAmount()">
+                <div id="fAmountBox" style="display:none">
+                  <label>报销金额（元，自动汇总）</label>
+                  <input id="fAmount" type="number" readonly placeholder="0.00">
                   <p class="field-hint" id="amountHint"></p>
                 </div>
-                <div>
-                  <label>收款账户</label>
-                  <input value="招商银行 6225 **** **** 3407" readonly>
-                </div>
               </div>
             </div>
 
-            <!-- 差旅专用：出差申请 + 报销一体化 -->
-            <div class="form-card travel-apply" id="travelApply" style="display:none">
-              <h3 class="fc-title">🧳 出差申请（与报销合并提交）
-                <em class="tag tag-orange">出差回来一次交齐</em></h3>
-              <p class="fc-sub">差旅报销不再需要提前单独提交出差申请单，回来后一次性填写「出行事由 → 行程明细 → 费用报销」即可</p>
-              <div class="form-grid">
-                <div style="grid-column:1/-1">
-                  <label>出行事由 <em>*</em></label>
-                  <input id="tReason" placeholder="例如：参加全国大学生电子设计竞赛决赛">
-                </div>
-                <div>
-                  <label>出发地</label>
-                  <input id="tFrom" placeholder="学校 / 所在城市" value="杭州市">
-                </div>
-                <div>
-                  <label>目的地 <em>*</em></label>
-                  <input id="tTo" placeholder="例如：南京市">
-                </div>
-                <div>
-                  <label>出发日期 <em>*</em></label>
-                  <input id="tDateFrom" type="date" value="2026-10-12">
-                </div>
-                <div>
-                  <label>返回日期 <em>*</em></label>
-                  <input id="tDateBack" type="date" value="2026-10-14">
-                </div>
-                <div>
-                  <label>交通方式</label>
-                  <select id="tTransport"><option>高铁 / 火车</option><option>飞机</option><option>长途汽车</option><option>自驾</option><option>出租车</option><option>多种方式</option></select>
-                </div>
-                <div>
-                  <label>同行人</label>
-                  <input id="tCompanion" placeholder="选填，多人用逗号分隔" value="李同学,王同学">
-                </div>
-                <div style="grid-column:1/-1">
-                  <label>住宿 / 餐饮 / 补贴说明</label>
-                  <textarea id="tExtra" rows="2" placeholder="例如：住宿标准 ¥300/间/夜 × 2 晚；餐饮补贴 ¥100/天 × 3 天；无其他杂费"></textarea>
-                </div>
-              </div>
-            </div>
+            <!-- 差旅专用（一期由 JS 渲染：出差人 / 行程 / 关联申请 / 收款信息） -->
+            <div class="form-card travel-apply" id="travelApply" style="display:none"></div>
 
-            <div class="form-card" id="detailCard"></div>
+            <!-- 动态表单区：出差申请（出差人+行程） / 差旅报销（关联申请+收款） -->
+            <div class="form-card" id="formExtra"></div>
             <div class="form-foot">
               <button class="btn-ghost" onclick="App.wizard.goto(1)">上一步</button>
               <button class="btn-primary" onclick="App.wizard.goto(3)">下一步</button>
@@ -315,56 +277,8 @@
 
           <!-- 步骤3 -->
           <div class="wstep" data-step="3">
-            <div class="form-card">
-              <h3 class="fc-title">票据信息
-                <button class="btn-ocr" onclick="App.wizard.simulateOCR()" title="拍照 / 上传发票，自动识别回填">
-                  📷 OCR 快速填写
-                </button>
-              </h3>
-              <p class="fc-sub">支持手动逐项填写，或点击右上角 OCR 按钮拍照识别后自动回填</p>
-              <div class="invoice-entry" id="invoiceEntry">
-                <div class="ie-empty" id="ieEmpty">
-                  <div class="ie-empty-ico">🧾</div>
-                  <div>
-                    <p><b>还未添加任何票据</b></p>
-                    <p class="ie-empty-sub">你可以手动填写下方表单，或用 OCR 拍照快速录入</p>
-                  </div>
-                </div>
-                <div class="ie-list" id="ieList"></div>
-              </div>
-
-              <div class="form-grid inv-form">
-                <div>
-                  <label>发票代码</label>
-                  <input id="invCode" placeholder="12 位发票代码">
-                </div>
-                <div>
-                  <label>发票号码</label>
-                  <input id="invNo" placeholder="8 位发票号码">
-                </div>
-                <div>
-                  <label>开票日期</label>
-                  <input id="invDate" type="date">
-                </div>
-                <div>
-                  <label>价税合计（元）</label>
-                  <input id="invAmt" type="number" placeholder="0.00" oninput="App.wizard.syncInvAmount()">
-                </div>
-                <div style="grid-column:1/-1">
-                  <label>销售方名称</label>
-                  <input id="invSeller" placeholder="如：杭州xx科技有限公司">
-                </div>
-                <div style="grid-column:1/-1">
-                  <label>项目 / 品名</label>
-                  <input id="invItem" placeholder="如：*运输服务*客运服务">
-                </div>
-              </div>
-
-              <div class="invoice-actions">
-                <button class="btn-ghost" onclick="App.wizard.addInvoice()"><b>+</b> 添加一张票据</button>
-                <span class="invoice-hint">已添加 <em id="invCount">0</em> 张 · 总金额 ¥<em id="invTotal">0.00</em></span>
-              </div>
-            </div>
+            <!-- 出差申请：说明 + 审批人预览；差旅报销：费用明细 + 发票上传（均由 JS 渲染） -->
+            <div class="form-card" id="formExtra3"></div>
             <div class="form-foot">
               <button class="btn-ghost" onclick="App.wizard.goto(2)">上一步</button>
               <button class="btn-primary" onclick="App.wizard.goto(4)">下一步</button>
@@ -382,15 +296,14 @@
               <div class="form-card chain-card">
                 <h3 class="fc-title">审批链路预览 <em class="tag tag-blue">系统按类型与金额自动路由</em></h3>
                 <div class="chain-preview" id="chainPreview"></div>
-                <label class="cc-label">抄送人（可视不可批）</label>
-                <div class="cc-box"><span class="cc-person">王老师 <i>×</i></span><input placeholder="添加同事，收到进度同步通知"></div>
+                <div class="cc-tip">抄送功能二期上线：一期审批人自动路由，暂不支持手动添加抄送人。</div>
                 <div class="secure-note"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 018 0v3" stroke="currentColor" stroke-width="1.6"/></svg> 全程电子确认签署，数据加密存储，操作留痕可审计</div>
               </div>
             </div>
             <div class="form-foot">
               <button class="btn-ghost" onclick="App.wizard.goto(3)">上一步</button>
-              <button class="btn-ghost" onclick="toast('草稿已保存')">保存草稿</button>
-              <button class="btn-primary" onclick="App.wizard.submit()">确认提交</button>
+              <button class="btn-ghost" onclick="App.wizard.saveDraft()">保存草稿</button>
+              <button class="btn-primary" id="wSubmitBtn" onclick="App.wizard.submit()">确认提交</button>
             </div>
           </div>
         </div>
@@ -425,7 +338,7 @@
           <div><h2>财务看板</h2><p>审批完成后自动归档，支持查询追溯与单据导出</p></div>
           <div class="dash-tools">
             <select class="mini-select"><option>2026 学年</option><option>2025 学年</option></select>
-            <button class="btn-ghost" onclick="toast('报销单与票据已导出为 Excel（演示）')"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> 导出报表</button>
+            <button class="btn-ghost" onclick="App.exportFinance()" title="导出已归档单据为 Excel"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> 导出报表</button>
           </div>
         </div>
         <div class="kpi-grid" id="kpiGrid"></div>
@@ -458,12 +371,12 @@
         <!-- 搜索区 -->
         <div class="panel faq-search-panel">
           <div class="faq-search-box">
-            <span class="faq-search-icon">🔍</span>
+            <span class="faq-search-icon ip-slot" data-ip="search"></span>
             <input type="text" id="faqSearchInput" placeholder="输入你的问题，比如：发票怎么验真？大额报销需要谁审批？" autocomplete="off">
             <button class="faq-search-btn" onclick="App.faq.doSearch()">搜索</button>
           </div>
           <div class="faq-hot-tags">
-            <span class="faq-hot-label">🔥 热门搜索：</span>
+            <span class="faq-hot-label"><span class="ip-slot" data-ip="fire"></span>热门搜索：</span>
             <button class="faq-tag" onclick="App.faq.quickSearch('发票验真')">发票验真</button>
             <button class="faq-tag" onclick="App.faq.quickSearch('驳回修改')">驳回修改</button>
             <button class="faq-tag" onclick="App.faq.quickSearch('大额报销')">大额报销</button>
@@ -479,8 +392,8 @@
           <!-- 默认态：分类浏览 -->
           <div class="faq-default" id="faqDefault">
             <div class="faq-default-head">
-              <h3>📚 按分类浏览</h3>
-              <button class="faq-guide-entry" onclick="App.guide.start()">▶ 新手引导（30秒）</button>
+              <h3><span class="ip-slot" data-ip="book"></span>按分类浏览</h3>
+              <button class="faq-guide-entry" onclick="App.guide.start()"><span class="ip-slot" data-ip="play"></span>新手引导（30秒）</button>
             </div>
             <div class="faq-categories" id="faqCategories"></div>
           </div>
@@ -509,9 +422,10 @@
 <div class="notice-drawer-mask" id="noticeMask" onclick="App.notice.close()"></div>
 <aside class="notice-drawer" id="noticeDrawer">
   <div class="nd-head">
-    <h3>🔔 消息通知</h3>
+    <h3><span class="ip-slot" data-ip="remind"></span>消息通知</h3>
     <div class="nd-actions">
       <button onclick="App.notice.readAll()">全部已读</button>
+      <em id="ndUnreadCount">0</em>
       <button class="nd-close" onclick="App.notice.close()">✕</button>
     </div>
   </div>
@@ -529,7 +443,7 @@
 <!-- 新手引导遮罩 -->
 <div class="guide-overlay" id="guideOverlay" style="display:none">
   <div class="guide-box">
-    <div class="guide-icon" id="guideIcon">📋</div>
+    <div class="guide-icon" id="guideIcon"></div>
     <h3 id="guideTitle">选择报销类型</h3>
     <p id="guideText">系统根据差旅、科研基金、大批采购等类型，自动匹配对应的审批链路，你不用再纠结「该找谁签字」。</p>
     <div class="guide-dots" id="guideDots"></div>
@@ -540,6 +454,7 @@
   </div>
 </div>
 
+<script src="icons.js?v=1"></script>
 <script src="app.js?v=6"></script>
 </body>
 </html>
