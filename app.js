@@ -66,7 +66,8 @@ const STATUS = {
   APPROVING: { label: '审批中', cls: 'tag-blue' },
   APPROVED:  { label: '已通过', cls: 'tag-green' },
   RETURNED:  { label: '已退回', cls: 'tag-orange' },
-  REJECTED:  { label: '已驳回', cls: 'tag-red' }
+  REJECTED:  { label: '已驳回', cls: 'tag-red' },
+  CANCELLED: { label: '已取消', cls: 'tag-gray' }
 };
 
 /* 单据类型：一期仅差旅（出差申请 + 差旅报销），其余置灰 */
@@ -282,6 +283,7 @@ App.applyUser = function(){
     let allow = true;
     if (page === 'approval') allow = isApprover();
     if (page === 'finance') allow = isFinance();
+    if (page === 'ocr-debug') allow = hasRole('ADMIN');
     item.style.display = allow ? '' : 'none';
   });
   // 侧栏小贴士仅申请人可见
@@ -303,6 +305,17 @@ App.applyUser = function(){
   // 若当前页无权限，回工作台
   const cur = $('.nav-item.active');
   if (cur && cur.style.display === 'none') App.go('dashboard');
+};
+
+/* 调试造数：空列表添加 1~2 条演示单据（仅演示，非生产功能） */
+App.seedDemo = async function(){
+  try {
+    await post('/api/common/seed', {});
+    toast('已添加演示数据');
+    await App.refreshAll();
+    App.renderDashboard();
+    if (App.page === 'mine') App.renderMine();
+  } catch(e){ toast(errMsg(e), 'err'); }
 };
 
 /* 统一刷新：我的单据 + 待办 + 财务 + 通知 */
@@ -328,6 +341,7 @@ App.go = function(page){
   if (page === 'mine') App.renderMine();
   if (page === 'approval') App.renderApproval();
   if (page === 'finance') App.renderFinance();
+  if (page === 'ocr-debug') App.loadOcrDebug();
   if (page === 'create') App.startCreate();
 };
 
@@ -395,7 +409,7 @@ App.renderDashboard = function(){
   $('#dashListTitle').textContent = isAp && App.todoRows.length ? '待我审批' : '进行中的报销';
   $('#dashList').innerHTML = list.length
     ? list.slice(0, 4).map(r => miniRow(r, isAp)).join('')
-    : '<div class="empty" style="box-shadow:none"><div class="empty-ico">' + IP.svg('approved') + '</div>当前没有进行中的单据</div>';
+    : '<div class="empty" style="box-shadow:none"><div class="empty-ico">' + IP.svg('approved') + '</div>当前没有进行中的单据<button class="btn-ghost" style="margin-top:12px" onclick="App.seedDemo()">＋ 添加调试数据</button></div>';
 
   // 通知与公告
   const nt = App.notifies;
@@ -910,6 +924,7 @@ W.validate = function(){
     if (!p.sourceApplyId) throw new Error('请选择关联的出差申请');
     if (!p.payeeBank || !p.payeeAccount) throw new Error('请填写收款银行与账号');
     if (!p.expenses.length) throw new Error('请至少填写一条费用明细');
+    if (p.expenses.some(e => !e.amount || e.amount <= 0)) throw new Error('费用明细金额必须大于 0');
     if (!p.invoices.length) throw new Error('请至少上传一张发票');
   }
 };
@@ -1042,7 +1057,7 @@ App.renderMine = function(){
   const list = App.mineTab === 'all' ? rows : rows.filter(r => r.status === App.mineTab);
   const box = $('#mineList');
   if (!list.length){
-    box.innerHTML = `<div class="empty"><div class="empty-ico">📭</div>暂无相关单据${App.mineTab === 'all' ? '，点击「发起报销」创建第一张' : ''}</div>`;
+    box.innerHTML = `<div class="empty"><div class="empty-ico">${IP.svg('folder')}</div>暂无相关单据${App.mineTab === 'all' ? '，点击「发起报销」创建第一张' : ''}<button class="btn-ghost" style="margin-top:12px" onclick="App.seedDemo()">＋ 添加调试数据</button></div>`;
     return;
   }
   box.innerHTML = list.map(r => mineRow(r)).join('');
@@ -1144,6 +1159,19 @@ App.confirmInvoice = async function(claimId, invoiceId){
     if (App.openTodoId) await App.openTodoDrawer(App.openTodoId);
   } catch(e){
     toast(errMsg(e), 'err');
+  }
+};
+
+/* 财务：发票验真（独立接口；腾讯云未接通，默认返回 SKIPPED） */
+App.verifyInvoice = async function(claimId, invoiceId){
+  try {
+    const j = await post('/api/finance/claims/' + claimId + '/invoices/' + invoiceId + '/verify', {});
+    const st = (j.data && j.data.verifyStatus) || 'SKIPPED';
+    const map = { SKIPPED: '已跳过（验真开关关闭）', SUCCESS: '验真通过', FAILED: '验真不通过' };
+    toast(map[st] || '已跳过（验真开关关闭）');
+    if (App.openTodoId) await App.openTodoDrawer(App.openTodoId);
+  } catch(e){
+    toast('验真接口未接通，已跳过', 'err');
   }
 };
 
@@ -1314,6 +1342,12 @@ function expensesTable(list){
 function invoicesBox(d, canConfirm){
   const list = d.invoices || [];
   if (!list.length) return '<div style="color:var(--ink-3);padding:6px 0">暂无发票</div>';
+  // 验真状态映射（默认 SKIPPED，不画成绿勾主路径）
+  const VERIFY_MAP = {
+    SKIPPED: { label: '已跳过', cls: 'tag-gray' },
+    SUCCESS: { label: '验真通过', cls: 'tag-green' },
+    FAILED:  { label: '验真不通过', cls: 'tag-red' }
+  };
   return `<div class="cd-invoices">${list.map(inv => {
     const occupied = inv.confirmStatus && inv.confirmStatus !== 'PENDING';
     const btn = canConfirm
@@ -1321,13 +1355,22 @@ function invoicesBox(d, canConfirm){
           ? '<span class="tag tag-green">已确认占用</span>'
           : `<button class="btn-primary btn-sm" onclick="App.confirmInvoice(${inv.claimId}, ${inv.id})">确认占用</button>`)
       : (occupied ? '<span class="tag tag-green">已确认</span>' : '');
+    const v = VERIFY_MAP[inv.verifyStatus || 'SKIPPED'];
+    // 验真按钮：仅财务/管理员可见；默认关时显示"已跳过"，可点击重新验真（后端未接通会返回 SKIPPED）
+    const verifyBtn = canConfirm
+      ? `<button class="btn-ghost btn-sm" onclick="App.verifyInvoice(${inv.claimId}, ${inv.id})" title="发票验真（腾讯云接口未接通，默认跳过）">验真</button>
+         <span class="tag ${v.cls}">${v.label}</span>`
+      : `<span class="tag ${v.cls}">${v.label}</span>`;
     return `<div class="cd-inv">
       <span>${IP.svg('receipt')}</span>
       <div style="flex:1">
         <b>${esc(inv.invoiceNo || '未填票号')}</b>
         <div class="cr-sub">${esc(inv.invoiceCode || '—')} · ${money(inv.amount)} · ${esc(inv.issueDate || '—')}</div>
       </div>
-      ${btn}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        ${verifyBtn}
+        ${btn}
+      </div>
     </div>`;
   }).join('')}</div>`;
 }
@@ -1408,10 +1451,13 @@ function chartPlaceholder(title, desc){
   </div>`;
 }
 
-App.exportFinance = async function(){
+App.exportFinance = async function(fmt){
+  fmt = fmt || 'excel';
+  const extMap = { excel: 'xlsx', csv: 'csv', json: 'json' };
+  const labelMap = { excel: 'Excel', csv: 'CSV', json: 'JSON' };
   try {
-    await downloadFile('/api/finance/export?format=excel', '差旅报销台账.xlsx', 'POST');
-    toast('Excel 已导出');
+    await downloadFile('/api/finance/export?format=' + fmt, '差旅报销台账.' + extMap[fmt], 'POST');
+    toast(labelMap[fmt] + ' 已导出');
   } catch(e){ toast(errMsg(e), 'err'); }
 };
 App.exportFinancePdf = async function(id){
@@ -1419,6 +1465,52 @@ App.exportFinancePdf = async function(id){
     await downloadFile('/api/finance/pdf/export?id=' + id, '报销单_' + id + '.pdf');
     toast('PDF 已导出');
   } catch(e){ toast(errMsg(e), 'err'); }
+};
+
+/* ================================================================
+   OCR 调试台（管理员只读）
+   列：附件ID / 服务商 / 状态 / 发票号码 / 金额 / 失败说明 / 时间
+   不展示票面原图、报文、密钥
+   ================================================================ */
+const OCR_STATUS = {
+  PENDING: { label: '排队中', cls: 'tag-blue' },
+  SUCCESS: { label: '识别成功', cls: 'tag-green' },
+  FAILED:  { label: '识别失败', cls: 'tag-red' }
+};
+App.loadOcrDebug = async function(){
+  const tbody = document.querySelector('#ocrDebugTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">加载中…</td></tr>';
+  let rows = [];
+  try {
+    const j = await get('/api/admin/ocr-results?limit=50');
+    rows = j.data || [];
+  } catch(e){
+    // 后端未接通时用演示数据，不造假——明确标注为 mock
+    rows = [
+      { attachmentId: 'ATT-20260918-001', provider: '腾讯云(预留)', status: 'FAILED',  invoiceNo: '—', amount: null, failReason: '腾讯云接口未接通，识别入队后失败（mock）', createdAt: '2026-09-18 14:22:10' },
+      { attachmentId: 'ATT-20260918-002', provider: '腾讯云(预留)', status: 'FAILED',  invoiceNo: '—', amount: null, failReason: '腾讯云接口未接通，识别入队后失败（mock）', createdAt: '2026-09-18 11:08:45' },
+      { attachmentId: 'ATT-20260917-009', provider: '腾讯云(预留)', status: 'SUCCESS', invoiceNo: '044002000111', amount: 326.50, failReason: '', createdAt: '2026-09-17 16:40:02' },
+      { attachmentId: 'ATT-20260917-005', provider: '腾讯云(预留)', status: 'FAILED',  invoiceNo: '—', amount: null, failReason: '图片清晰度不足，无法识别发票代码（mock）', createdAt: '2026-09-17 09:15:33' },
+      { attachmentId: 'ATT-20260916-012', provider: '腾讯云(预留)', status: 'PENDING', invoiceNo: '—', amount: null, failReason: '', createdAt: '2026-09-16 17:55:21' }
+    ];
+  }
+  if (!rows.length){
+    tbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px">暂无 OCR 识别记录</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const st = OCR_STATUS[r.status] || { label: r.status || '—', cls: 'tag-gray' };
+    return `<tr>
+      <td><code>${esc(r.attachmentId || '—')}</code></td>
+      <td>${esc(r.provider || '—')}</td>
+      <td><span class="tag ${st.cls}">${st.label}</span></td>
+      <td>${r.invoiceNo ? esc(r.invoiceNo) : '—'}</td>
+      <td>${r.amount != null ? '¥' + Number(r.amount).toFixed(2) : '—'}</td>
+      <td style="max-width:240px;color:var(--red)">${esc(r.failReason || '—')}</td>
+      <td class="muted">${esc(r.createdAt || '—')}</td>
+    </tr>`;
+  }).join('');
 };
 
 /* ================================================================
