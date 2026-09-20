@@ -99,6 +99,10 @@
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 19h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         财务看板
       </a>
+      <a class="nav-item" data-page="ocr-debug" data-roles="admin">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="18" cy="17" r="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M20 19l2 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        OCR 调试台
+      </a>
       <a class="nav-item" data-page="faq">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 9.5a2.5 2.5 0 014.5 1.5c0 1.5-2 2-2 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="17" r=".8" fill="currentColor"/></svg>
         帮助中心
@@ -338,7 +342,9 @@
           <div><h2>财务看板</h2><p>审批完成后自动归档，支持查询追溯与单据导出</p></div>
           <div class="dash-tools">
             <select class="mini-select"><option>2026 学年</option><option>2025 学年</option></select>
-            <button class="btn-ghost" onclick="App.exportFinance()" title="导出已归档单据为 Excel"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> 导出报表</button>
+            <button class="btn-ghost" onclick="App.exportFinance('excel')" title="导出为 Excel"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> Excel</button>
+            <button class="btn-ghost" onclick="App.exportFinance('csv')" title="导出为 CSV"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> CSV</button>
+            <button class="btn-ghost" onclick="App.exportFinance('json')" title="导出为 JSON"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg> JSON</button>
           </div>
         </div>
         <div class="kpi-grid" id="kpiGrid"></div>
@@ -360,6 +366,27 @@
           <div class="panel wide">
             <div class="panel-head"><h3>最近归档单据</h3><a>查看全部 →</a></div>
             <table class="data-table" id="archiveTable"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== OCR 调试台（管理员） ========== -->
+      <section class="page" data-page="ocr-debug">
+        <div class="page-head between">
+          <div><h2>OCR 调试台</h2><p>仅管理员可见 · 只读最近识别结果，不展示票面原图与密钥</p></div>
+          <div class="dash-tools">
+            <button class="btn-ghost" onclick="App.loadOcrDebug()">刷新</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>最近 OCR 识别记录</h3><span class="muted">按时间倒序</span></div>
+          <div class="table-wrap">
+            <table class="data-table" id="ocrDebugTable">
+              <thead><tr>
+                <th>附件 ID</th><th>服务商</th><th>状态</th><th>发票号码</th><th>金额</th><th>失败说明</th><th>时间</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
           </div>
         </div>
       </section>
