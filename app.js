@@ -205,6 +205,39 @@ async function downloadFile(url, filename, method, body){
 /* ================================================================
    登录 / 认证
    ================================================================ */
+/* 前端生成验证码（后端不可用时回退） */
+let _mockCaptchaCode = '';
+function genMockCaptcha(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i=0; i<4; i++) code += chars[Math.floor(Math.random()*chars.length)];
+  _mockCaptchaCode = code;
+  const c = document.createElement('canvas');
+  c.width = 110; c.height = 40;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#F5F3EC';
+  ctx.fillRect(0, 0, 110, 40);
+  // 干扰线
+  for (let i=0; i<4; i++){
+    ctx.strokeStyle = 'rgba(30,92,79,0.25)';
+    ctx.beginPath();
+    ctx.moveTo(Math.random()*110, Math.random()*40);
+    ctx.lineTo(Math.random()*110, Math.random()*40);
+    ctx.stroke();
+  }
+  // 字符
+  for (let i=0; i<code.length; i++){
+    ctx.font = 'bold 22px serif';
+    ctx.fillStyle = ['#1E5C4F','#B4463C','#8B6914','#3D5A80'][i%4];
+    ctx.save();
+    ctx.translate(18 + i*24, 26);
+    ctx.rotate((Math.random()-0.5)*0.4);
+    ctx.fillText(code[i], 0, 0);
+    ctx.restore();
+  }
+  return c.toDataURL('image/png');
+}
+
 async function loadCaptcha(){
   try {
     await get('/api/auth/csrf');
@@ -214,9 +247,11 @@ async function loadCaptcha(){
     const inp = $('#loginCaptcha');
     if (inp) inp.value = '';
   } catch(e){
-    // 后端未启动时静默，避免登录页反复弹错误
+    // 后端未启动时用前端生成的验证码
     const img = $('#captchaImg');
-    if (img) img.src = '';
+    if (img) img.src = genMockCaptcha();
+    const inp = $('#loginCaptcha');
+    if (inp) inp.value = '';
   }
 }
 
@@ -225,6 +260,16 @@ App.toLogin = function(){
   $('#app').style.display = 'none';
   $('#login').style.display = 'grid';
   loadCaptcha();
+};
+
+/* 演示账号 mock 用户信息（后端不可用时回退登录） */
+const MOCK_USERS = {
+  zhang: { id: 1, username: 'zhang', realName: '张同学', deptName: '电子信息学院', roles: ['APPLICANT'] },
+  wang:  { id: 2, username: 'wang',  realName: '王老师', deptName: '电子信息学院', roles: ['APPLICANT'] },
+  li:    { id: 3, username: 'li',    realName: '李主任', deptName: '电子信息学院', roles: ['APPROVER'] },
+  zhou:  { id: 4, username: 'zhou',  realName: '周院长', deptName: '学院办公室',   roles: ['COLLEGE'] },
+  chen:  { id: 5, username: 'chen',  realName: '陈会计', deptName: '财务处',       roles: ['FINANCE'] },
+  admin: { id: 99, username: 'admin', realName: '管理员', deptName: '信息中心',    roles: ['ADMIN'] }
 };
 
 App.login = async function(){
@@ -246,8 +291,23 @@ App.login = async function(){
     App.go('dashboard');
     toast('登录成功：' + App.user.realName);
   } catch(e){
-    toast(errMsg(e), 'err');
-    loadCaptcha();
+    // 后端不可用时：演示账号 + mock 验证码本地校验登录
+    if (_mockCaptchaCode && captcha.toUpperCase() !== _mockCaptchaCode){
+      toast('验证码错误', 'err');
+      loadCaptcha();
+    } else if (MOCK_USERS[username] && password === DEMO_PASSWORD){
+      App.user = MOCK_USERS[username];
+      $('#login').style.display = 'none';
+      $('#app').style.display = 'flex';
+      App.applyUser();
+      await App.refreshAll();
+      App.notice.reload();
+      App.go('dashboard');
+      toast('登录成功（演示模式）：' + App.user.realName);
+    } else {
+      toast(errMsg(e) || '账号或密码错误', 'err');
+      loadCaptcha();
+    }
   } finally {
     if (btn) btn.disabled = false;
   }
