@@ -589,10 +589,10 @@ App.renderDashboard = function(){
   }).join('');
 
   // 列表区
-  const list = isAp && App.todoRows.length ? App.todoRows : rows.filter(r => r.status === 'APPROVING');
+  const sideList = isAp && App.todoRows.length ? App.todoRows : rows.filter(r => r.status === 'APPROVING');
   $('#dashListTitle').textContent = isAp && App.todoRows.length ? '待我审批' : '进行中的报销';
-  $('#dashList').innerHTML = list.length
-    ? list.slice(0, 4).map(r => miniRow(r, isAp)).join('')
+  $('#dashList').innerHTML = sideList.length
+    ? sideList.slice(0, 4).map(r => miniRow(r, isAp)).join('')
     : '<div class="empty" style="box-shadow:none"><div class="empty-ico">' + IP.svg('approved') + '</div>当前没有进行中的单据<button class="btn-ghost" style="margin-top:12px" onclick="App.seedDemo()">＋ 添加调试数据</button></div>';
 
   // 通知与公告
