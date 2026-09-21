@@ -362,10 +362,10 @@ svg{width:18px;height:18px;flex:none}
 .form-grid label{display:block;font-size:12.5px;color:var(--ink-2);font-weight:600;margin-bottom:6px}
 .form-grid label em{color:var(--red);font-style:normal}
 .form-grid input,.form-grid select{width:100%;border:1px solid var(--line-2);border-radius:var(--radius-sm);padding:9px 12px;background:#FDFCF8;transition:.14s}
-.form-grid select{cursor:pointer;appearance:none;-webkit-appearance:none;border-left:3px solid var(--primary);
+.form-grid select{cursor:pointer;appearance:none;-webkit-appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2393A097' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
-.form-grid select:hover,.form-grid select:focus{border-left-color:var(--primary-d);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+.form-grid select:hover,.form-grid select:focus{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
 .form-grid input:focus,.form-grid select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-l)}
 .form-grid input[readonly]{background:#F1EEE4;color:var(--ink-2)}
 .fg-reason{grid-column:1/-1}
@@ -715,10 +715,10 @@ body.touring{overflow:hidden}
 /* 表单动态容器 */
 .field-box label{display:block;font-size:12.5px;color:var(--ink-2);font-weight:600;margin-bottom:6px}
 .field-box input,.field-box select,.field-box textarea{width:100%;border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;background:#FDFCF8;transition:.14s;font-family:inherit;font-size:13px}
-.field-box select{cursor:pointer;appearance:none;-webkit-appearance:none;border-left:3px solid var(--primary);
+.field-box select{cursor:pointer;appearance:none;-webkit-appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2393A097' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
-.field-box select:hover,.field-box select:focus{border-left-color:var(--primary-d);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+.field-box select:hover,.field-box select:focus{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
 .field-box input:focus,.field-box select:focus,.field-box textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-l);outline:none}
 .field-box textarea{resize:vertical}
 .field-box input[readonly]{background:#F1EEE4;color:var(--ink-2)}
@@ -753,12 +753,11 @@ body.touring{overflow:hidden}
 .detail-table input[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1}
 .detail-table select{
   cursor:pointer;appearance:none;-webkit-appearance:none;
-  border-left:3px solid var(--primary);
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2393A097' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 9px center;padding-right:28px;
 }
-.detail-table select:hover{border-left-color:var(--primary-d);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
-.detail-table select:focus{border-left-color:var(--primary-d);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+.detail-table select:hover{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+.detail-table select:focus{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
 .detail-table tr{transition:.14s}
 .detail-table tr:hover td{background:#FBFAF3}
 .detail-table .del-row{
