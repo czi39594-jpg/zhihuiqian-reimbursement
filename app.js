@@ -391,7 +391,7 @@ function mockRow(o){
 }
 
 /* ---- 跨账号共享数据池（localStorage）：学生提交 → 审批人可见 ---- */
-const SHARED_KEY = 'zhx_shared_claims_v1';
+const SHARED_KEY = 'zhx_shared_claims_v2';
 const SHARED = {
   read(){ try { return JSON.parse(localStorage.getItem(SHARED_KEY) || '[]'); } catch(e){ return []; } },
   write(list){ localStorage.setItem(SHARED_KEY, JSON.stringify(list)); },
@@ -399,11 +399,43 @@ const SHARED = {
   update(id, patch){ const list = this.read(); const i = list.findIndex(r => String(r.id) === String(id)); if (i >= 0){ Object.assign(list[i], patch); this.write(list); } },
   remove(id){ this.write(this.read().filter(r => String(r.id) !== String(id))); }
 };
+/* 测试用：清空共享池并重新生成种子数据（浏览器控制台执行 App.resetMockData()） */
+App.resetMockData = function(){
+  localStorage.removeItem(SHARED_KEY);
+  seedSharedData();
+  if (App.mockMode && App.user){ App.loadMockData(); App.renderDashboard(); }
+  toast('测试数据已重置为 14 条种子单据');
+};
 /* 根据报销类型返回下一审批节点的分配人 */
 function nextAssignee(claimType){
   // 演示用：所有类型第一站都到李主任（部门领导）
   return { name: '李主任', username: 'li', node: 'LEADER' };
 }
+
+/* 首次加载时往共享池写入一批测试单据（只写一次；清空 localStorage 后会重新生成） */
+function seedSharedData(){
+  if (SHARED.read().length > 0) return;
+  const seed = [
+    /* —— 张同学（学生） —— */
+    { id: 301001, claimNo: 'BX-2026-0921-001', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'LEADER', amount: 2346.80, createdAt: '2026-09-21 09:12', applicantName: '张同学', applicantUsername: 'zhang', reason: '杭州学术年会差旅费报销（高铁+住宿+补助）', currentAssigneeName: '李主任', currentAssigneeUsername: 'li' },
+    { id: 301002, claimNo: 'SQ-2026-0915-001', claimType: 'TRAVEL_APPLY', typeLabel: '出差申请', status: 'APPROVED', currentNode: null, amount: 2800, createdAt: '2026-09-15 14:30', applicantName: '张同学', applicantUsername: 'zhang', reason: '赴南京参加产学研合作调研', currentAssigneeName: '', currentAssigneeUsername: '' },
+    { id: 301003, claimNo: 'BX-2026-0912-002', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'RETURNED', currentNode: 'LEADER', amount: 890, createdAt: '2026-09-12 16:20', applicantName: '张同学', applicantUsername: 'zhang', reason: '上海市内交通及住宿费报销（发票缺开票日期被退回）', currentAssigneeName: '张同学', currentAssigneeUsername: 'zhang' },
+    { id: 301004, claimNo: 'KY-2026-0920-001', claimType: 'FUND', typeLabel: '科研/项目基金', status: 'APPROVING', currentNode: 'COLLEGE', amount: 15600, createdAt: '2026-09-20 10:05', applicantName: '张同学', applicantUsername: 'zhang', reason: '智能传感项目实验耗材及测试费用', currentAssigneeName: '周院长', currentAssigneeUsername: 'zhou' },
+    { id: 301005, claimNo: 'HD-2026-0916-002', claimType: 'ACTIVITY', typeLabel: '学生活动/竞赛经费', status: 'APPROVING', currentNode: 'FINANCE', amount: 3200, createdAt: '2026-09-16 13:50', applicantName: '张同学', applicantUsername: 'zhang', reason: '全国大学生电子设计竞赛报名费及材料费', currentAssigneeName: '陈会计', currentAssigneeUsername: 'chen' },
+    { id: 301006, claimNo: 'BX-2026-0828-005', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVED', currentNode: null, amount: 4120.60, createdAt: '2026-08-28 11:26', applicantName: '张同学', applicantUsername: 'zhang', reason: '暑期成都学科竞赛差旅报销', currentAssigneeName: '', currentAssigneeUsername: '' },
+    { id: 301007, claimNo: 'CG-2026-0910-003', claimType: 'PURCHASE', typeLabel: '大批物资采购', status: 'REJECTED', currentNode: 'LEADER', amount: 6800, createdAt: '2026-09-10 15:08', applicantName: '张同学', applicantUsername: 'zhang', reason: '实验室示波器采购申请（超预算被驳回）', currentAssigneeName: '张同学', currentAssigneeUsername: 'zhang' },
+    /* —— 王老师（教师） —— */
+    { id: 302001, claimNo: 'BX-2026-0920-003', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'LEADER', amount: 4120.60, createdAt: '2026-09-20 15:48', applicantName: '王老师', applicantUsername: 'wang', reason: '深圳智能传感项目联合攻关差旅费', currentAssigneeName: '李主任', currentAssigneeUsername: 'li', timeout: true },
+    { id: 302002, claimNo: 'CG-2026-0919-001', claimType: 'PURCHASE', typeLabel: '大批物资采购', status: 'APPROVING', currentNode: 'LEADER', amount: 28500, createdAt: '2026-09-19 11:22', applicantName: '王老师', applicantUsername: 'wang', reason: '实验室服务器及网络设备集中采购', currentAssigneeName: '李主任', currentAssigneeUsername: 'li' },
+    { id: 302003, claimNo: 'HD-2026-0918-001', claimType: 'ACTIVITY', typeLabel: '学生活动/竞赛经费', status: 'APPROVING', currentNode: 'LEADER', amount: 3200, createdAt: '2026-09-18 09:15', applicantName: '王老师', applicantUsername: 'wang', reason: '全国大学生电子设计竞赛队伍集训经费', currentAssigneeName: '李主任', currentAssigneeUsername: 'li' },
+    { id: 302004, claimNo: 'BX-2026-0917-004', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'FINANCE', amount: 1289, createdAt: '2026-09-17 13:40', applicantName: '王老师', applicantUsername: 'wang', reason: '市内教学调研交通费报销', currentAssigneeName: '陈会计', currentAssigneeUsername: 'chen', timeout: true },
+    { id: 302005, claimNo: 'KY-2026-0914-002', claimType: 'FUND', typeLabel: '科研/项目基金', status: 'APPROVING', currentNode: 'COLLEGE', amount: 32800, createdAt: '2026-09-14 10:30', applicantName: '王老师', applicantUsername: 'wang', reason: '国家自然科学基金项目版面费与专利申请费', currentAssigneeName: '周院长', currentAssigneeUsername: 'zhou' },
+    { id: 302006, claimNo: 'SQ-2026-0913-002', claimType: 'TRAVEL_APPLY', typeLabel: '出差申请', status: 'APPROVED', currentNode: null, amount: 5600, createdAt: '2026-09-13 09:00', applicantName: '王老师', applicantUsername: 'wang', reason: '赴苏州开展项目对接出差申请', currentAssigneeName: '', currentAssigneeUsername: '' },
+    { id: 302007, claimNo: 'KY-2026-0909-004', claimType: 'FUND', typeLabel: '科研/项目基金', status: 'RETURNED', currentNode: 'COLLEGE', amount: 9800, createdAt: '2026-09-09 16:42', applicantName: '王老师', applicantUsername: 'wang', reason: '横向项目外协服务费（缺合同附件被退回）', currentAssigneeName: '王老师', currentAssigneeUsername: 'wang' }
+  ];
+  seed.forEach(r => SHARED.add(r));
+}
+seedSharedData();
 
 App.loadMockData = function(){
   const ap = isApprover(), fin = isFinance();
@@ -451,14 +483,23 @@ App.loadMockData = function(){
   const seenIds = new Set(presetMine.map(r => r.id));
   App.mineRows = presetMine.concat(sharedMine.filter(r => !seenIds.has(r.id)));
 
-  /* —— 财务台账：财务 / 管理员可见全部报销单 —— */
-  App.financeRows = fin ? [
+  /* —— 财务台账：财务 / 管理员可见全部报销单（预设 + 共享池中流转到财务及已办结的报销单） —— */
+  const presetFinance = [
     mockRow({ id: 204, claimNo: 'BX-2026-0918', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'FINANCE', amount: 3176.50, createdAt: '2026-09-18 14:22', applicantName: '张同学', reason: '杭州学术年会差旅费报销', currentAssigneeName: myName }),
     mockRow({ id: 205, claimNo: 'BX-2026-0917', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'FINANCE', amount: 1289.00, createdAt: '2026-09-17 10:36', applicantName: '王老师', reason: '市内教学调研交通费报销', currentAssigneeName: myName, timeout: true }),
     mockRow({ id: 206, claimNo: 'BX-2026-0915', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVED', currentNode: null, amount: 2560.00, createdAt: '2026-09-15 09:50', applicantName: '张同学', reason: '成都学科竞赛差旅报销' }),
     mockRow({ id: 207, claimNo: 'BX-2026-0912', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVED', currentNode: null, amount: 1843.30, createdAt: '2026-09-12 16:14', applicantName: '王老师', reason: '苏州项目对接差旅报销' }),
     mockRow({ id: 208, claimNo: 'BX-2026-0905', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'RETURNED', currentNode: 'FINANCE', amount: 760.00, createdAt: '2026-09-05 13:30', applicantName: '张同学', reason: '武汉学术交流交通费报销' })
-  ] : [];
+  ];
+  if (fin){
+    const finIds = new Set(presetFinance.map(r => r.id));
+    const sharedFinance = shared
+      .filter(r => r.claimType !== 'TRAVEL_APPLY' && !finIds.has(r.id))
+      .map(r => mockRow(Object.assign({}, r, { currentAssigneeName: r.currentNode === 'FINANCE' ? myName : r.currentAssigneeName })));
+    App.financeRows = presetFinance.concat(sharedFinance);
+  } else {
+    App.financeRows = [];
+  }
 
   /* —— 通知与公告 —— */
   const ann = { id: 9001, title: '【公告】国庆节前报销受理截止时间提醒', content: '9 月 29 日 17:00 前提交的单据可在节前完成审核，之后提交的顺延至节后处理。', readFlag: false, createdAt: '2026-09-19 10:00', eventKey: 'notice', bizType: null, bizId: null };
