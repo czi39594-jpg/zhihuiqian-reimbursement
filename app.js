@@ -887,7 +887,7 @@ W.addExpense = function(first){
     <td><input type="date" class="eDate"></td>
     <td><input type="number" class="eAmt" min="0.01" step="0.01" placeholder="0.00" oninput="W.syncClaimAmount()"></td>
     <td><input class="eRemark" placeholder="说明（可选）"></td>
-    <td><span class="add-row-btn" onclick="this.closest('tr').remove();W.expenses=W.readExpenses();W.syncClaimAmount()">🗑</span></td>`;
+    <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.expenses=W.readExpenses();W.syncClaimAmount()">${IP.svg('del')}</button></td>`;
   tb.appendChild(tr);
   W.expenses = W.readExpenses();
 };
