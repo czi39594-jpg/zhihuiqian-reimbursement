@@ -2,8 +2,7 @@
    智汇签 · 校园智能报销审批平台 —— 前端（对接后端一期 API）
    A 阶段：接入 campus-reimburse 后端（Spring Boot）
    - 登录：CSRF + 图形验证码 + Session
-   - 差旅闭环：出差申请 → 审批 → 差旅报销 → 财务审核
-   - 其他报销类型置灰（即将上线）
+   - 全类型报销闭环：出差申请 / 差旅报销 / 科研基金 / 采购 / 活动经费
    ================================================================ */
 
 /* ---------------- API 配置与请求层 ---------------- */
@@ -70,7 +69,7 @@ const STATUS = {
   CANCELLED: { label: '已取消', cls: 'tag-gray' }
 };
 
-/* 单据类型：一期仅差旅（出差申请 + 差旅报销），其余置灰 */
+/* 单据类型：全部开放 */
 const TYPES = {
   TRAVEL_APPLY: { label: '出差申请', icon: IP.svg('airplane'), color: 'blue', disabled: false,
     desc: '先申请后报销：填写项目、事由、出差人与行程，审批通过后才能报销',
@@ -78,15 +77,15 @@ const TYPES = {
   TRAVEL_CLAIM: { label: '差旅报销', icon: IP.svg('receipt'), color: 'green', disabled: false,
     desc: '关联已通过的出差申请，填写费用明细与发票，领导审批 → 财务复核',
     freq: '一期可用', chain: '部门领导 → 财务复核' },
-  FUND:   { label: '科研 / 项目基金', icon: IP.svg('experiment'), color: 'purple', disabled: true,
-    desc: '科研经费、项目基金相关支出报销', freq: '即将上线', chain: '' },
-  PURCHASE: { label: '大批物资采购', icon: IP.svg('box'), color: 'orange', disabled: true,
-    desc: '设备、耗材等大额物资集中采购报销', freq: '即将上线', chain: '' },
-  ACTIVITY: { label: '学生活动 / 竞赛经费', icon: IP.svg('trophy'), color: 'cyan', disabled: true,
-    desc: '学科竞赛、社团活动、学生工作经费', freq: '即将上线', chain: '' }
+  FUND:   { label: '科研 / 项目基金', icon: IP.svg('experiment'), color: 'purple', disabled: false,
+    desc: '科研经费、项目基金相关支出报销，支持多项目关联', freq: '一期可用', chain: '项目负责人 → 学院审批 → 财务复核' },
+  PURCHASE: { label: '大批物资采购', icon: IP.svg('box'), color: 'orange', disabled: false,
+    desc: '设备、耗材等大额物资集中采购报销，附采购清单', freq: '一期可用', chain: '部门领导 → 资产管理员 → 财务复核' },
+  ACTIVITY: { label: '学生活动 / 竞赛经费', icon: IP.svg('trophy'), color: 'cyan', disabled: false,
+    desc: '学科竞赛、社团活动、学生工作经费', freq: '一期可用', chain: '指导老师 → 学工处 → 财务复核' }
 };
 
-const CLAIM_TYPE_LABEL = { TRAVEL_APPLY: '出差申请', TRAVEL_CLAIM: '差旅报销' };
+const CLAIM_TYPE_LABEL = { TRAVEL_APPLY: '出差申请', TRAVEL_CLAIM: '差旅报销', FUND: '科研/项目基金', PURCHASE: '大批物资采购', ACTIVITY: '学生活动/竞赛经费' };
 
 /* 后端角色 -> 中文 */
 const ROLE_LABEL = {
@@ -2020,7 +2019,7 @@ const FAQ_KNOWLEDGE = [
   {q:'驳回和退回有什么区别？',a:'退回（RETURNED）后可修改重提；驳回（REJECTED）为终态，需重新发起。两类操作审批人都必须填写意见。',kw:['驳回','退回','区别','重提'],cat:'驳回与修改'},
   {q:'报销款打到哪里？',a:'打到你在报销单中填写的本人银行卡（开户行 + 卡号）。一期流程到财务复核通过即办结（APPROVED），打款环节二期上线。',kw:['打款','银行卡','转账','开户行','卡号'],cat:'财务与打款'},
   {q:'可以撤回已提交的单据吗？',a:'一期暂未提供撤回功能；如已提交且需要修改，可联系当前审批人退回后再继续编辑。',kw:['撤回','撤销','取消提交'],cat:'安全与隐私'},
-  {q:'科研基金、大批采购、学生活动什么时候能用？',a:'一期仅开放差旅（出差申请 + 差旅报销），其余类型已在原型中规划，后端二期补充流程模板后上线。',kw:['科研','采购','活动','即将上线','二期','什么时候'],cat:'流程引导'}
+  {q:'科研基金、大批采购、学生活动怎么报销？',a:'在"发起报销"中选择对应类型即可。科研/项目基金需先关联项目编号；大批物资采购需附采购清单；学生活动/竞赛经费需指导老师签字后提交。',kw:['科研','采购','活动','基金','竞赛'],cat:'流程引导'}
 ];
 
 const FAQ_CATEGORIES = [
