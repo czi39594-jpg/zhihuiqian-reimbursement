@@ -837,7 +837,7 @@ W.addPerson = function(first){
     <td><select class="pType">${dictOptions('PERSON_TYPE', '请选择', first ? 'STAFF' : '')}</select></td>
     <td><input class="pName" placeholder="姓名"></td>
     <td><input type="checkbox" class="pMe" onchange="W.syncMe(this)"></td>
-    <td><span class="add-row-btn" onclick="this.closest('tr').remove();W.persons=W.readPersons()">🗑</span></td>`;
+    <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.persons=W.readPersons()">${IP.svg('del')}</button></td>`;
   tb.appendChild(tr);
   W.persons = W.readPersons();
 };
@@ -871,7 +871,7 @@ W.addLeg = function(first){
     <td><input class="lTo" placeholder="如：杭州"></td>
     <td><select class="lTrans">${dictOptions('TRANSPORT', '请选择', first ? 'HIGH_RAIL' : '')}</select></td>
     <td><input type="date" class="lDate"></td>
-    <td><span class="add-row-btn" onclick="this.closest('tr').remove();W.legs=W.readLegs()">🗑</span></td>`;
+    <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.legs=W.readLegs()">${IP.svg('del')}</button></td>`;
   tb.appendChild(tr);
   W.legs = W.readLegs();
 };
@@ -1289,7 +1289,7 @@ W.renderPersonsEdit = function(){
       <td><select class="pType">${dictOptions('PERSON_TYPE', '请选择', p.personType)}</select></td>
       <td><input class="pName" value="${esc(p.guestName || '')}" ${p.isApplicant ? 'disabled' : ''}></td>
       <td><input type="checkbox" class="pMe" ${p.isApplicant ? 'checked' : ''} onchange="W.syncMe(this)"></td>
-      <td><span class="add-row-btn" onclick="this.closest('tr').remove();W.persons=W.readPersons()">🗑</span></td>`;
+      <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.persons=W.readPersons()">${IP.svg('del')}</button></td>`;
     if (p.isApplicant && App.user) tr.querySelector('.pName').value = p.userId ? (App.user.realName || '') : tr.querySelector('.pName').value;
     tb.appendChild(tr);
   });
@@ -1307,7 +1307,7 @@ W.renderLegsEdit = function(){
       <td><input class="lTo" value="${esc(l.toPlace || '')}"></td>
       <td><select class="lTrans">${dictOptions('TRANSPORT', '请选择', l.transportCode)}</select></td>
       <td><input type="date" class="lDate" value="${esc(l.departDate || '')}"></td>
-      <td><span class="add-row-btn" onclick="this.closest('tr').remove();W.legs=W.readLegs()">🗑</span></td>`;
+      <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.legs=W.readLegs()">${IP.svg('del')}</button></td>`;
     tb.appendChild(tr);
   });
   if (!W.legs.length) W.addLeg(true);
