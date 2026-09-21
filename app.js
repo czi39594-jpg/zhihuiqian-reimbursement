@@ -113,6 +113,7 @@ const NODE_LABEL = {
 /* ---------------- 全局状态 ---------------- */
 const App = {
   user: null,            // LoginUser { id, username, realName, deptName, roles[] }
+  mockMode: false,       // 后端不可用时的演示模式（本地示例数据）
   page: 'dashboard',
   mineView: 'list',
   mineTab: 'all',
@@ -131,6 +132,10 @@ const $$ = s => [...document.querySelectorAll(s)];
 const money = n => '¥' + Number(n || 0).toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2});
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtTime = t => t ? String(t).replace('T', ' ').slice(0, 16) : '—';
+function fmtNow(){
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
 let toastTimer;
 function toast(msg, type){
   const t = $('#toast');
@@ -283,12 +288,13 @@ App.login = async function(){
   try {
     const j = await post('/api/auth/login', { username, password, captcha });
     App.user = j.data;
+    App.mockMode = false;
     $('#login').style.display = 'none';
     $('#app').style.display = 'flex';
     App.applyUser();
     await App.refreshAll();
     App.notice.reload();
-    App.go('dashboard');
+    App.afterEnter();
     toast('登录成功：' + App.user.realName);
   } catch(e){
     // 后端不可用时：演示账号 + mock 验证码本地校验登录
@@ -297,12 +303,12 @@ App.login = async function(){
       loadCaptcha();
     } else if (MOCK_USERS[username] && password === DEMO_PASSWORD){
       App.user = MOCK_USERS[username];
+      App.mockMode = true;
       $('#login').style.display = 'none';
       $('#app').style.display = 'flex';
       App.applyUser();
-      await App.refreshAll();
-      App.notice.reload();
-      App.go('dashboard');
+      App.loadMockData();
+      App.afterEnter();
       toast('登录成功（演示模式）：' + App.user.realName);
     } else {
       toast(errMsg(e) || '账号或密码错误', 'err');
@@ -311,6 +317,12 @@ App.login = async function(){
   } finally {
     if (btn) btn.disabled = false;
   }
+};
+
+/* 登录进入系统后的统一入口：定位工作台 + 首次登录引导 */
+App.afterEnter = function(){
+  App.go('dashboard');
+  setTimeout(() => App.tour.maybeStart(), 500);
 };
 
 App.logout = async function(){
@@ -367,8 +379,94 @@ App.applyUser = function(){
   if (cur && cur.style.display === 'none') App.go('dashboard');
 };
 
-/* 调试造数：空列表添加 1~2 条演示单据（仅演示，非生产功能） */
+/* ================================================================
+   演示模式：本地示例数据（后端不可用时，页面仍有完整内容可看）
+   ================================================================ */
+function mockRow(o){
+  return Object.assign({
+    id: 0, todoId: null, claimNo: '', claimType: 'TRAVEL_APPLY',
+    typeLabel: '出差申请', status: 'APPROVING', currentNode: 'LEADER',
+    amount: 0, createdAt: '', applicantName: '', version: 1,
+    reason: '', currentAssigneeName: '', timeout: false
+  }, o);
+}
+
+App.loadMockData = function(){
+  const ap = isApprover(), fin = isFinance();
+  const myName = App.user.realName;
+
+  /* —— 待办：审批人 / 学院 / 财务 / 管理员可见 —— */
+  App.todoRows = [];
+  if (ap && !fin){
+    App.todoRows = [
+      mockRow({ todoId: 501, id: 201, claimNo: 'SQ-2026-0921', claimType: 'TRAVEL_APPLY', status: 'APPROVING', currentNode: 'LEADER', amount: 2800, createdAt: '2026-09-20 08:42', applicantName: '张同学', reason: '赴杭州参加全国高校电子信息学术年会', currentAssigneeName: myName, timeout: false }),
+      mockRow({ todoId: 502, id: 202, claimNo: 'BX-2026-0919', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'LEADER', amount: 2346.80, createdAt: '2026-09-19 16:05', applicantName: '王老师', reason: '南京产学研合作调研差旅费报销', currentAssigneeName: myName, timeout: true })
+    ];
+  }
+  if (hasRole('COLLEGE')){
+    App.todoRows = [
+      mockRow({ todoId: 503, id: 203, claimNo: 'SQ-2026-0920', claimType: 'TRAVEL_APPLY', status: 'APPROVING', currentNode: 'COLLEGE', amount: 4200, createdAt: '2026-09-20 09:18', applicantName: '王老师', reason: '赴深圳开展智能传感项目联合攻关', currentAssigneeName: myName, timeout: false })
+    ];
+  }
+  if (fin){
+    App.todoRows = [
+      mockRow({ todoId: 504, id: 204, claimNo: 'BX-2026-0918', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'FINANCE', amount: 3176.50, createdAt: '2026-09-18 14:22', applicantName: '张同学', reason: '杭州学术年会差旅费报销（高铁+住宿+补助）', currentAssigneeName: myName, timeout: false }),
+      mockRow({ todoId: 505, id: 205, claimNo: 'BX-2026-0917', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'FINANCE', amount: 1289.00, createdAt: '2026-09-17 10:36', applicantName: '王老师', reason: '市内教学调研交通费报销', currentAssigneeName: myName, timeout: true })
+    ];
+  }
+
+  /* —— 我的单据：每个角色都有自己提交过的单据 —— */
+  App.mineRows = [
+    mockRow({ id: 101, claimNo: 'SQ-2026-0921', claimType: 'TRAVEL_APPLY', status: 'APPROVING', currentNode: 'LEADER', amount: 2800, createdAt: '2026-09-20 08:42', applicantName: myName, reason: '赴杭州参加全国高校电子信息学术年会', currentAssigneeName: '李主任', timeout: false }),
+    mockRow({ id: 102, claimNo: 'BX-2026-0918', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: fin ? 'FINANCE' : 'LEADER', amount: 2346.80, createdAt: '2026-09-18 14:22', applicantName: myName, reason: '杭州学术年会差旅费报销（高铁+住宿+补助）', currentAssigneeName: fin ? myName : '李主任', timeout: false }),
+    mockRow({ id: 103, claimNo: 'SQ-2026-0910', claimType: 'TRAVEL_APPLY', status: 'APPROVED', currentNode: null, amount: 1560, createdAt: '2026-09-10 09:05', applicantName: myName, reason: '南京产学研合作调研出差申请', currentAssigneeName: '', timeout: false }),
+    mockRow({ id: 104, claimNo: 'BX-2026-0908', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'RETURNED', currentNode: 'LEADER', amount: 890, createdAt: '2026-09-08 15:48', applicantName: myName, reason: '上海市内交通及住宿费报销', currentAssigneeName: '李主任', timeout: false }),
+    mockRow({ id: 105, claimNo: 'SQ-2026-0922', claimType: 'TRAVEL_APPLY', status: 'DRAFT', currentNode: null, amount: 3200, createdAt: '2026-09-19 20:12', applicantName: myName, reason: '赴北京参加智能制造论坛（草稿）', currentAssigneeName: '', timeout: false }),
+    mockRow({ id: 106, claimNo: 'BX-2026-0830', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVED', currentNode: null, amount: 4120.60, createdAt: '2026-08-30 11:26', applicantName: myName, reason: '暑期科研合作单位差旅报销', currentAssigneeName: '', timeout: false })
+  ];
+
+  /* —— 财务台账：财务 / 管理员可见全部报销单 —— */
+  App.financeRows = fin ? [
+    mockRow({ id: 204, claimNo: 'BX-2026-0918', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'FINANCE', amount: 3176.50, createdAt: '2026-09-18 14:22', applicantName: '张同学', reason: '杭州学术年会差旅费报销', currentAssigneeName: myName }),
+    mockRow({ id: 205, claimNo: 'BX-2026-0917', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'FINANCE', amount: 1289.00, createdAt: '2026-09-17 10:36', applicantName: '王老师', reason: '市内教学调研交通费报销', currentAssigneeName: myName, timeout: true }),
+    mockRow({ id: 206, claimNo: 'BX-2026-0915', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVED', currentNode: null, amount: 2560.00, createdAt: '2026-09-15 09:50', applicantName: '张同学', reason: '成都学科竞赛差旅报销' }),
+    mockRow({ id: 207, claimNo: 'BX-2026-0912', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVED', currentNode: null, amount: 1843.30, createdAt: '2026-09-12 16:14', applicantName: '王老师', reason: '苏州项目对接差旅报销' }),
+    mockRow({ id: 208, claimNo: 'BX-2026-0905', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'RETURNED', currentNode: 'FINANCE', amount: 760.00, createdAt: '2026-09-05 13:30', applicantName: '张同学', reason: '武汉学术交流交通费报销' })
+  ] : [];
+
+  /* —— 通知与公告 —— */
+  const ann = { id: 9001, title: '【公告】国庆节前报销受理截止时间提醒', content: '9 月 29 日 17:00 前提交的单据可在节前完成审核，之后提交的顺延至节后处理。', readFlag: false, createdAt: '2026-09-19 10:00', eventKey: 'notice', bizType: null, bizId: null };
+  if (ap){
+    App.notifies = [
+      ann,
+      { id: 9002, title: '您有新的待办审批：' + (App.todoRows[0] ? App.todoRows[0].reason : '差旅单据'), content: '申请人 ' + (App.todoRows[0] ? App.todoRows[0].applicantName : '') + ' 提交的单据等待您审批，请及时处理。', readFlag: false, createdAt: '2026-09-20 08:45', eventKey: 'todo-approval', bizType: 'CLAIM', bizId: App.todoRows[0] ? App.todoRows[0].id : null },
+      { id: 9003, title: '单据已超时提醒', content: '有 1 笔待办超过处理时限，系统已自动催办，请优先处理。', readFlag: false, createdAt: '2026-09-20 09:00', eventKey: 'todo-timeout', bizType: 'CLAIM', bizId: null }
+    ];
+  } else {
+    App.notifies = [
+      ann,
+      { id: 9004, title: '您的出差申请已提交，等待部门领导审批', content: 'SQ-2026-0921 赴杭州参加全国高校电子信息学术年会，当前节点：部门领导。', readFlag: false, createdAt: '2026-09-20 08:43', eventKey: 'status', bizType: 'CLAIM', bizId: 101 },
+      { id: 9005, title: '您的报销单已被退回', content: 'BX-2026-0908 住宿费发票缺少开票日期，请补充后重新提交。', readFlag: false, createdAt: '2026-09-08 16:10', eventKey: 'status-return', bizType: 'CLAIM', bizId: 104 },
+      { id: 9006, title: '报销审批已通过', content: 'SQ-2026-0910 南京产学研合作调研出差申请已审批完结。', readFlag: true, createdAt: '2026-09-11 10:20', eventKey: 'status', bizType: 'CLAIM', bizId: 103 }
+    ];
+  }
+  App.notice.list = App.notifies;
+  App.notice.updateBellBadge();
+  App.updateNavBadge();
+};
+
+/* 更新侧栏「审批中心」待办角标 */
+App.updateNavBadge = function(){
+  const badge = $('#navTodoCount');
+  if (!badge) return;
+  const n = (App.todoRows || []).length;
+  badge.textContent = n > 99 ? '99+' : n;
+  badge.style.display = n ? '' : 'none';
+};
+
+/* 调试造数：后端可用时调用种子接口；演示模式下数据已内置 */
 App.seedDemo = async function(){
+  if (App.mockMode){ toast('演示模式已内置示例数据', 'ok'); return; }
   try {
     await post('/api/common/seed', {});
     toast('已添加演示数据');
@@ -389,6 +487,7 @@ App.refreshAll = async function(){
     tasks.push(get('/api/finance/claims').then(j => { App.financeRows = (j.data || []).map(briefToRow); }).catch(() => { App.financeRows = []; }));
   }
   await Promise.all(tasks);
+  App.updateNavBadge();
 };
 
 /* ---------------- 路由 ---------------- */
@@ -475,10 +574,10 @@ App.renderDashboard = function(){
   const nt = App.notifies;
   $('#dashNotice').innerHTML = nt.length
     ? nt.slice(0, 4).map(n => `
-      <li><span class="nt-dot ${n.readFlag ? 'dot-gray' : 'dot-blue'}"></span>
+      <li style="cursor:pointer" onclick="App.notice.open()"><span class="nt-dot ${n.readFlag ? 'dot-gray' : 'dot-blue'}"></span>
         <div><b>${esc(n.title)}</b><p>${esc(n.content || '')}</p><time>${fmtTime(n.createdAt)}</time></div>
       </li>`).join('')
-    : '<li><span class="nt-dot dot-gray"></span><div><b>暂无通知</b><p>提交或审批单据后会在这里收到消息</p></div></li>';
+    : '<li style="cursor:pointer" onclick="App.notice.open()"><span class="nt-dot dot-gray"></span><div><b>暂无通知</b><p>提交或审批单据后会在这里收到消息，点击查看通知中心</p></div></li>';
 };
 
 function claimLane(r){
@@ -555,6 +654,23 @@ W.reset = function(){
 
 /* 加载元数据：项目 / 字典 / 已通过出差申请 / 功能开关 */
 W.loadMeta = async function(){
+  if (App.mockMode){
+    W.meta.projects = [
+      { id: 1, code: 'HX-2026-027', name: '智能传感网络校企联合项目' },
+      { id: 2, code: 'JX-2026-011', name: '新工科教学改革研究项目' }
+    ];
+    const d = (type, code, label) => ({ dictType: type, dictCode: code, dictLabel: label });
+    W.meta.dicts = {
+      PERSON_TYPE: [d('PERSON_TYPE','STAFF','教师'), d('PERSON_TYPE','STUDENT','学生'), d('PERSON_TYPE','GUEST','校外人员')],
+      TRANSPORT: [d('TRANSPORT','HIGH_RAIL','高铁/动车'), d('TRANSPORT','TRAIN','火车'), d('TRANSPORT','PLANE','飞机'), d('TRANSPORT','SHIP','轮船'), d('TRANSPORT','OTHER','其他')],
+      EXPENSE_TYPE: [d('EXPENSE_TYPE','TRANSPORT','交通费'), d('EXPENSE_TYPE','LODGING','住宿费'), d('EXPENSE_TYPE','SUBSIDY','差旅补助'), d('EXPENSE_TYPE','CONFERENCE','会议费'), d('EXPENSE_TYPE','OTHER','其他')]
+    };
+    W.meta.applies = [
+      { id: 301, claimNo: 'SQ-2026-0910', reason: '南京产学研合作调研出差申请', status: 'APPROVED' }
+    ];
+    W.meta.ocrEnabled = false;
+    return;
+  }
   try {
     const [pj, dt, ap, ft] = await Promise.all([
       get('/api/common/projects').catch(() => ({ data: [] })),
@@ -809,8 +925,15 @@ W.renderInvZone = function(){
 W.uploadInvoice = async function(input){
   const file = input.files[0];
   if (!file) return;
-  const btn = $('#invFileInput');
   try {
+    if (App.mockMode){
+      if (!W.claimId) W.claimId = Date.now();
+      W.invoices.push({ fileId: Date.now(), invoiceType: 'VAT', invoiceCode: '', invoiceNo: '', issueDate: '', amount: null, buyerName: '' });
+      W.renderInvoices();
+      toast('发票已上传（演示模式），请手动填写票号与金额');
+      input.value = '';
+      return;
+    }
     if (!W.claimId) await W.saveDraft(true);   // 先保存草稿拿到单据 id
     const fd = new FormData();
     fd.append('claimId', W.claimId);
@@ -995,15 +1118,49 @@ W.saveDraft = async function(silent){
     if (!silent) toast(e.message, 'err');
     throw e;
   }
+  if (App.mockMode){
+    if (!W.claimId) W.claimId = Date.now();
+    toast('草稿已保存（演示模式）');
+    return W.claimId;
+  }
   const url = W.type === 'TRAVEL_APPLY' ? '/api/applicant/travel-applies' : '/api/applicant/travel-claims';
   const j = await post(url, W.buildPayload());
   W.claimId = j.data.id;
   return j.data.id;
 };
 
+/* 演示模式：本地模拟提交，生成一条新单据 */
+W.mockSubmit = function(){
+  const p = W.buildPayload();
+  const isApply = W.type === 'TRAVEL_APPLY';
+  const no = (isApply ? 'SQ-' : 'BX-') + new Date().getFullYear() + '-' + String(Date.now()).slice(-4);
+  const reason = isApply ? p.reason : ($('#fReason').value.trim() || '差旅费用报销');
+  const amount = isApply ? null : p.expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const row = mockRow({
+    id: Number(String(Date.now()).slice(-6)),
+    claimNo: no, claimType: W.type,
+    typeLabel: isApply ? '出差申请' : '差旅报销',
+    status: 'APPROVING', currentNode: 'LEADER',
+    amount: amount,
+    createdAt: fmtNow(), applicantName: App.user.realName,
+    reason: reason || '新建报销单',
+    currentAssigneeName: '李主任'
+  });
+  const exist = App.mineRows.findIndex(r => String(r.id) === String(W.claimId));
+  if (exist >= 0) App.mineRows[exist] = row; else App.mineRows.unshift(row);
+  App.notifies.unshift({ id: Date.now(), title: '提交成功：等待部门领导审批', content: no + ' ' + row.reason, readFlag: false, createdAt: fmtNow(), eventKey: 'status', bizType: 'CLAIM', bizId: row.id });
+  App.notice.list = App.notifies;
+  App.notice.updateBellBadge();
+  W.reset();
+  App.renderDashboard();
+  App.go('mine');
+  toast('提交成功！单据已进入审批流程（演示模式）');
+};
+
 /* 提交 */
 W.submit = async function(){
   try { W.validate(); } catch(e){ toast(e.message, 'err'); return; }
+  if (App.mockMode){ W.mockSubmit(); return; }
   const btn = $('#wSubmitBtn');
   if (btn) btn.disabled = true;
   try {
@@ -1023,6 +1180,36 @@ W.submit = async function(){
 
 /* 编辑模式：加载草稿 / 退回单据详情并预填 */
 W.loadDraft = async function(){
+  if (App.mockMode){
+    const row = App.mineRows.find(r => String(r.id) === String(W.claimId));
+    if (!row) return;
+    const d = App.buildMockDetail(row);
+    const form = d.form || {};
+    W.version = form.version;
+    $('#fReason').value = form.reason || '';
+    if (W.type === 'TRAVEL_APPLY'){
+      if (d.apply){
+        const ds = $('#fgDateStart input'), de = $('#fgDateEnd input');
+        if (ds) ds.value = d.apply.startDate || '';
+        if (de) de.value = d.apply.endDate || '';
+        if ($('#fRemark2')) $('#fRemark2').value = d.apply.remark || '';
+      }
+      W.persons = d.persons.map(p => ({ userId: null, guestName: p.guestName, personType: p.personType, isApplicant: p.isApplicant }));
+      W.legs = d.legs.map(l => ({ fromPlace: l.fromPlace, toPlace: l.toPlace, transportCode: l.transportCode, departDate: l.departDate }));
+      W.renderPersonsEdit();
+      W.renderLegsEdit();
+    } else {
+      W._editSourceApplyId = 301;
+      W._editBank = '中国建设银行（城西支行）';
+      W._editMasked = '**** 6688';
+      W.expenses = d.expenses.map(e => ({ expenseTypeCode: e.expenseTypeCode, occurredOn: e.occurredOn, amount: e.amount, remark: e.remark }));
+      W.invoices = d.invoices.map(i => ({ fileId: null, invoiceType: '', invoiceCode: i.invoiceCode, invoiceNo: i.invoiceNo, issueDate: i.issueDate, amount: i.amount, buyerName: i.buyerName }));
+      W.fillStep2();
+      W.fillStep3();
+      W.syncClaimAmount();
+    }
+    return;
+  }
   const url = W.type === 'TRAVEL_APPLY' ? '/api/applicant/travel-applies/' : '/api/applicant/travel-claims/';
   try {
     const j = await get(url + W.claimId);
@@ -1188,6 +1375,7 @@ App.renderApproval = function(){
 
 /* 审批动作 */
 App.decide = async function(action){
+  if (App.mockMode){ App.mockDecide(action); return; }
   const inp = $('#opinionInput');
   const comment = inp ? inp.value.trim() : '';
   if ((action === 'return' || action === 'reject') && !comment){
@@ -1213,6 +1401,14 @@ App.decide = async function(action){
 
 /* 财务：确认发票占用 */
 App.confirmInvoice = async function(claimId, invoiceId){
+  if (App.mockMode){
+    toast('发票已确认占用（演示模式）');
+    const inv = document.querySelector('.cd-invoices button[onclick*="confirmInvoice(' + claimId + ', ' + invoiceId + ')"]');
+    if (inv){
+      inv.outerHTML = '<span class="tag tag-green">已确认占用</span>';
+    }
+    return;
+  }
   try {
     await post('/api/finance/claims/' + claimId + '/invoices/' + invoiceId + '/confirm');
     toast('发票已确认占用');
@@ -1224,6 +1420,10 @@ App.confirmInvoice = async function(claimId, invoiceId){
 
 /* 财务：发票验真（独立接口；腾讯云未接通，默认返回 SKIPPED） */
 App.verifyInvoice = async function(claimId, invoiceId){
+  if (App.mockMode){
+    toast('已跳过（验真开关关闭，演示模式）');
+    return;
+  }
   try {
     const j = await post('/api/finance/claims/' + claimId + '/invoices/' + invoiceId + '/verify', {});
     const st = (j.data && j.data.verifyStatus) || 'SKIPPED';
@@ -1241,8 +1441,17 @@ App.verifyInvoice = async function(claimId, invoiceId){
 App.openDrawer = async function(id){
   App.openClaimId = id;
   App.openTodoId = null;
-  const url = id && App.mineRows.find(r => r.id === id)
-    ? (App.mineRows.find(r => r.id === id).claimType === 'TRAVEL_APPLY' ? '/api/applicant/travel-applies/' : '/api/applicant/travel-claims/') + id
+  const row = App.mineRows.find(r => r.id === id) || App.financeRows.find(r => r.id === id);
+  if (App.mockMode){
+    if (!row){ toast('单据不存在', 'err'); return; }
+    $('#drawer').innerHTML = drawerLoadingHtml();
+    $('#drawer').classList.add('open');
+    $('#drawerMask').classList.add('open');
+    App.renderDetail(App.buildMockDetail(row), null);
+    return;
+  }
+  const url = row
+    ? (row.claimType === 'TRAVEL_APPLY' ? '/api/applicant/travel-applies/' : '/api/applicant/travel-claims/') + id
     : null;
   if (!url){ toast('单据不存在', 'err'); return; }
   $('#drawer').innerHTML = drawerLoadingHtml();
@@ -1263,6 +1472,12 @@ App.openTodoDrawer = async function(todoId){
   $('#drawer').innerHTML = drawerLoadingHtml();
   $('#drawer').classList.add('open');
   $('#drawerMask').classList.add('open');
+  if (App.mockMode){
+    const row = App.todoRows.find(r => r.todoId === todoId);
+    if (!row){ toast('待办不存在', 'err'); App.closeDrawer(); return; }
+    App.renderDetail(App.buildMockDetail(row), todoId);
+    return;
+  }
   try {
     const j = await get('/api/approval/todos/' + todoId);
     App.renderDetail(j.data, todoId);
@@ -1270,6 +1485,100 @@ App.openTodoDrawer = async function(todoId){
     toast(errMsg(e), 'err');
     App.closeDrawer();
   }
+};
+
+/* 演示模式：根据列表行构造完整详情（结构与后端详情接口一致） */
+App.buildMockDetail = function(r){
+  const isApply = r.claimType === 'TRAVEL_APPLY';
+  const isClaim = !isApply;
+  const applicant = r.applicantName || (App.user ? App.user.realName : '');
+  // 审批链路
+  const chain = isApply ? ['LEADER', 'COLLEGE'] : ['LEADER', 'FINANCE'];
+  const idx = r.currentNode ? chain.indexOf(r.currentNode) : -1;
+  const timeline = [];
+  timeline.push({ nodeName: '提交申请', assigneeName: applicant, actedAt: r.createdAt, state: 'DONE' });
+  chain.forEach((node, i) => {
+    let state = 'TODO', actedAt = null, assignee = NODE_LABEL[node] + ' / ';
+    if (r.status === 'APPROVED'){ state = 'DONE'; actedAt = r.createdAt; }
+    else if (r.status === 'DRAFT'){ state = 'TODO'; }
+    else if (i < idx){ state = 'DONE'; actedAt = r.createdAt; }
+    else if (i === idx){
+      state = r.status === 'RETURNED' ? 'RETURN' : 'ACTIVE';
+      assignee = (r.currentAssigneeName || NODE_LABEL[node]);
+      if (state === 'RETURN') actedAt = r.createdAt;
+    }
+    timeline.push({ nodeName: NODE_LABEL[node], assigneeName: assignee, actedAt, state,
+      comment: state === 'RETURN' ? '材料不齐全，请按要求补充后重新提交' : '' });
+  });
+
+  const expenses = isClaim ? [
+    { expenseTypeCode: '交通费', occurredOn: r.createdAt.slice(0, 10), amount: Math.round((r.amount || 0) * 0.45 * 100) / 100, remark: '高铁往返（二等座）' },
+    { expenseTypeCode: '住宿费', occurredOn: r.createdAt.slice(0, 10), amount: Math.round((r.amount || 0) * 0.30 * 100) / 100, remark: '协议酒店 2 晚' },
+    { expenseTypeCode: '差旅补助', occurredOn: r.createdAt.slice(0, 10), amount: Math.round((r.amount || 0) * 0.25 * 100) / 100, remark: '按出差天数计发' }
+  ] : [];
+  const atFin = r.currentNode === 'FINANCE' && isClaim;
+  const invoices = isClaim ? [
+    { id: 8001, claimId: r.id, invoiceCode: '04400200', invoiceNo: '044002000111', issueDate: r.createdAt.slice(0, 10), amount: expenses[1].amount, buyerName: '××大学',
+      confirmStatus: atFin ? 'PENDING' : 'CONFIRMED', verifyStatus: 'SKIPPED' },
+    { id: 8002, claimId: r.id, invoiceCode: '01100200', invoiceNo: '011002000456', issueDate: r.createdAt.slice(0, 10), amount: expenses[0].amount, buyerName: '××大学',
+      confirmStatus: atFin ? 'PENDING' : 'CONFIRMED', verifyStatus: 'SKIPPED' }
+  ] : [];
+
+  return {
+    applicantName: applicant,
+    form: { id: r.id, claimNo: r.claimNo, claimType: r.claimType, status: r.status, reason: r.reason,
+      amount: r.amount, createdAt: r.createdAt, version: r.version, currentNode: r.currentNode },
+    projectCode: 'HX-2026-027', projectName: '智能传感网络校企联合项目',
+    apply: isApply ? { reason: r.reason, startDate: '2026-09-25', endDate: '2026-09-27', remark: '按学校差旅标准执行' } : undefined,
+    claim: isClaim ? { payeeBank: '中国建设银行（城西支行）' } : undefined,
+    payeeAccountMasked: '**** 6688',
+    sourceApply: isClaim ? { form: { claimNo: 'SQ-2026-0901' } } : undefined,
+    persons: isApply ? [
+      { personType: '教师', guestName: applicant, isApplicant: true },
+      { personType: '学生', guestName: '刘同学', isApplicant: false }
+    ] : [],
+    legs: isApply ? [
+      { fromPlace: '本市', toPlace: '杭州', transportCode: '高铁二等座', departDate: '2026-09-25' },
+      { fromPlace: '杭州', toPlace: '本市', transportCode: '高铁二等座', departDate: '2026-09-27' }
+    ] : [],
+    expenses, invoices, timeline,
+    lastReturn: r.status === 'RETURNED' ? { comment: '住宿费发票缺少开票日期，请补充后重新提交' } : undefined
+  };
+};
+
+/* 演示模式：本地模拟审批动作 */
+App.mockDecide = function(action){
+  const inp = $('#opinionInput');
+  const comment = inp ? inp.value.trim() : '';
+  if ((action === 'return' || action === 'reject') && !comment){
+    toast('退回 / 驳回必须填写审批意见', 'err');
+    inp && inp.focus();
+    return;
+  }
+  const todo = App.todoRows.find(r => r.todoId === App.openTodoId);
+  if (todo){
+    App.todoRows = App.todoRows.filter(r => r.todoId !== App.openTodoId);
+    if (action === 'pass'){
+      const mine = App.mineRows.find(r => r.id === todo.id);
+      if (mine){ mine.status = 'APPROVED'; mine.currentNode = null; }
+      const fin = App.financeRows.find(r => r.id === todo.id);
+      if (fin){ fin.status = 'APPROVED'; fin.currentNode = null; }
+      App.notifies.unshift({ id: Date.now(), title: '待办已处理：通过', content: todo.claimNo + ' ' + todo.reason, readFlag: true, createdAt: fmtNow(), eventKey: 'notice', bizType: null, bizId: null });
+      toast('已通过（演示模式本地模拟）');
+    } else {
+      const mine = App.mineRows.find(r => r.id === todo.id);
+      if (mine){ mine.status = action === 'return' ? 'RETURNED' : 'REJECTED'; mine.currentNode = 'LEADER'; }
+      App.notifies.unshift({ id: Date.now(), title: action === 'return' ? '已退回申请人' : '已驳回', content: todo.claimNo + ' ' + comment, readFlag: true, createdAt: fmtNow(), eventKey: 'notice', bizType: null, bizId: null });
+      toast(action === 'return' ? '已退回（演示模式）' : '已驳回（演示模式）');
+    }
+    App.notice.list = App.notifies;
+    App.notice.updateBellBadge();
+  }
+  App.closeDrawer();
+  App.renderDashboard();
+  if (App.page === 'approval') App.renderApproval();
+  if (App.page === 'mine') App.renderMine();
+  if (App.page === 'finance') App.renderFinance();
 };
 
 function drawerLoadingHtml(){
@@ -1451,6 +1760,7 @@ function timelineNode(n){
 }
 
 App.downloadMyPdf = async function(id){
+  if (App.mockMode){ toast('演示模式暂不支持 PDF 导出', 'err'); return; }
   try {
     await downloadFile('/api/applicant/pdf/export?id=' + id, '报销单_' + id + '.pdf');
     toast('PDF 已导出');
@@ -1513,6 +1823,7 @@ function chartPlaceholder(title, desc){
 
 App.exportFinance = async function(fmt){
   fmt = fmt || 'excel';
+  if (App.mockMode){ App.mockExport(fmt); return; }
   const extMap = { excel: 'xlsx', csv: 'csv', json: 'json' };
   const labelMap = { excel: 'Excel', csv: 'CSV', json: 'JSON' };
   try {
@@ -1520,7 +1831,36 @@ App.exportFinance = async function(fmt){
     toast(labelMap[fmt] + ' 已导出');
   } catch(e){ toast(errMsg(e), 'err'); }
 };
+
+/* 演示模式：由本地台账数据直接生成文件下载 */
+App.mockExport = function(fmt){
+  const rows = App.financeRows;
+  const head = ['单号', '类型', '事由', '申请人', '金额', '状态', '提交时间'];
+  const body = rows.map(r => [r.claimNo, r.typeLabel, r.reason, r.applicantName, r.amount, (STATUS[r.status]||{}).label || r.status, r.createdAt]);
+  let blob, name;
+  if (fmt === 'json'){
+    blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
+    name = '差旅报销台账.json';
+  } else if (fmt === 'csv'){
+    const csv = [head, ...body].map(cols => cols.map(c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+    blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    name = '差旅报销台账.csv';
+  } else {
+    const tr = cols => '<tr>' + cols.map(c => '<td>' + esc(c) + '</td>').join('') + '</tr>';
+    const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1">'
+      + '<thead>' + tr(head) + '</thead><tbody>' + body.map(tr).join('') + '</tbody></table></body></html>';
+    blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    name = '差旅报销台账.xls';
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+  toast(({ excel: 'Excel', csv: 'CSV', json: 'JSON' })[fmt] + ' 已导出（演示数据）');
+};
 App.exportFinancePdf = async function(id){
+  if (App.mockMode){ toast('演示模式暂不支持 PDF 导出', 'err'); return; }
   try {
     await downloadFile('/api/finance/pdf/export?id=' + id, '报销单_' + id + '.pdf');
     toast('PDF 已导出');
@@ -1581,6 +1921,12 @@ App.notice = {
   list: [],
 
   async reload(){
+    if (App.mockMode){
+      this.list = App.notifies;
+      this.updateBellBadge();
+      if (App.page === 'dashboard') App.renderDashboard();
+      return;
+    }
     try {
       const j = await get('/api/common/notifies');
       App.notifies = j.data || [];
@@ -1779,29 +2125,123 @@ App.faq = {
 };
 
 /* ================================================================
-   新手引导（本地 + 后端进度记录）
+   新手分步指引（聚光灯 tour，首次登录自动出现，可随时重看）
    ================================================================ */
-const GUIDE = [
-  ['clipboard', '选择单据类型', '一期支持出差申请与差旅报销：先申请出差，审批通过后再报销；其余类型即将上线。'],
-  ['edit', '分步填写信息', '出差申请填项目、事由、出差人与行程；差旅报销关联申请、费用明细与发票。'],
-  ['receipt', '上传发票 · OCR 识别', '先上传发票文件再填写票号；识别按钮在功能开启时可用，失败可手动填写。'],
-  ['flow', '预览链路再提交', '提交前看清每一级审批人和处理时限；提交后通知自动推送。'],
-  ['history', '进度全程可查', '在「我的单据」实时查看卡在哪个环节；退回后继续编辑重提，无需重跑流程。']
-];
-App.guide = {
+App.tour = {
   i: 0,
-  start(){ this.i = 0; $('#guideOverlay').style.display = 'grid'; this.show(); },
-  show(){
-    const g = GUIDE[this.i];
-    $('#guideIcon').innerHTML = IP.svg(g[0]);
-    $('#guideTitle').textContent = g[1];
-    $('#guideText').textContent = g[2];
-    $('#guideDots').innerHTML = GUIDE.map((_, i) => `<i class="${i === this.i ? 'on' : ''}"></i>`).join('');
-    $('#guideNext').textContent = this.i === GUIDE.length - 1 ? '开始使用' : '下一步';
+  steps: [],
+  key(){ return 'zhx_tour_v1_' + (App.user ? App.user.username : 'anon'); },
+
+  /* 仅该账号首次登录时自动播放 */
+  maybeStart(){
+    if (!App.user) return;
+    if (localStorage.getItem(this.key())) return;
+    this.start();
   },
-  next(){ if (this.i < GUIDE.length - 1){ this.i++; this.show(); } else this.close(); },
-  close(){ $('#guideOverlay').style.display = 'none'; }
+
+  /* 按角色组装步骤 */
+  buildSteps(){
+    const s = [
+      { sel: '.process-board', title: '报销进程看板', text: '所有进行中的单据按审批节点展示：当前卡在谁手里、是否超时、金额多少，进工作台一眼就能看到。' },
+      { sel: '.nav-item[data-page="create"]', title: '发起报销', text: '一期支持「出差申请」和「差旅报销」：先申请出差，审批通过后再关联报销，系统自动匹配审批链路，不用再问该找谁签字。' },
+      { sel: '#dashStats', title: '报销数据统计', text: '我的单据、审批中、已通过、退回/驳回数量实时汇总，每个数字点进去就是对应筛选列表。' }
+    ];
+    if (isApprover()){
+      s.push({ sel: '.nav-item[data-page="approval"]', title: '审批中心', text: '待你审批的单据集中在这里，超时单据自动置顶；通过、退回、驳回都会记录审批意见，全程留痕。' });
+    }
+    if (isFinance()){
+      s.push({ sel: '.nav-item[data-page="finance"]', title: '财务看板', text: '财务复核台账、KPI 汇总在这里，支持导出 Excel / CSV / JSON，发票需逐张确认占用。' });
+    }
+    s.push({ sel: '.icon-btn.bell', title: '通知与公告', text: '审批进度、待办提醒和系统公告都会推送到铃铛里，红色角标代表未读消息；首页「通知与公告」点「更多」也能打开。' });
+    s.push({ sel: '.nav-item[data-page="faq"]', title: '帮助中心', text: '常见问题、报销规范和操作指引都在这里。忘记流程也没关系，随时点右上角盾牌图标重新观看本引导。' });
+    return s;
+  },
+
+  start(){
+    if (App.page !== 'dashboard') App.go('dashboard');
+    this.steps = this.buildSteps();
+    this.i = 0;
+    const ov = $('#tourOverlay');
+    if (!ov) return;
+    ov.style.display = 'block';
+    this._bound = this._bound || {
+      reposition: () => this.position(),
+      key: e => { if (e.key === 'Escape') this.finish(); }
+    };
+    window.addEventListener('resize', this._bound.reposition);
+    window.addEventListener('scroll', this._bound.reposition, true);
+    document.addEventListener('keydown', this._bound.key);
+    this.show();
+  },
+
+  show(){
+    const st = this.steps[this.i];
+    const el = document.querySelector(st.sel);
+    if (!el){ this.next(); return; }   // 元素不存在（如无权限）则跳过该步
+    el.scrollIntoView({ block: 'center', behavior: 'auto' });
+    $('#tourTitle').textContent = st.title;
+    $('#tourText').textContent = st.text;
+    $('#tourStepNo').textContent = '第 ' + (this.i + 1) + ' / ' + this.steps.length + ' 步';
+    $('#tourDots').innerHTML = this.steps.map((_, k) => '<i class="' + (k === this.i ? 'on' : '') + '"></i>').join('');
+    $('#tourPrev').disabled = this.i === 0;
+    $('#tourNextBtn').textContent = this.i === this.steps.length - 1 ? '开始使用' : '下一步';
+    setTimeout(() => this.position(el), 60);
+  },
+
+  position(el){
+    if ($('#tourOverlay').style.display === 'none') return;
+    el = el || document.querySelector(this.steps[this.i].sel);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const pad = 7;
+    const spot = $('#tourSpot');
+    spot.style.left = (r.left - pad) + 'px';
+    spot.style.top = (r.top - pad) + 'px';
+    spot.style.width = (r.width + pad * 2) + 'px';
+    spot.style.height = (r.height + pad * 2) + 'px';
+
+    const card = $('#tourCard');
+    const cw = Math.min(336, window.innerWidth - 32);
+    const ch = card.offsetHeight || 200;
+    card.classList.remove('below', 'above', 'no-caret');
+    let top, place;
+    if (r.bottom + 16 + ch < window.innerHeight){
+      top = r.bottom + 16; place = 'below';
+    } else if (r.top - 16 - ch > 0){
+      top = r.top - 16 - ch; place = 'above';
+    } else {
+      top = Math.max(12, Math.min(window.innerHeight - ch - 12, (r.top + r.height / 2 - ch / 2)));
+      place = 'below';
+    }
+    card.classList.add(place);
+    // 空间太窄时隐藏小三角
+    if ((place === 'below' && r.bottom + 6 < 0) || (place === 'above' && r.top - 6 > window.innerHeight)) card.classList.add('no-caret');
+    let left = Math.max(16, Math.min(r.left + r.width / 2 - cw / 2, window.innerWidth - cw - 16));
+    card.style.left = left + 'px';
+    card.style.top = top + 'px';
+    card.style.width = cw + 'px';
+  },
+
+  next(){
+    if (this.i < this.steps.length - 1){ this.i++; this.show(); }
+    else this.finish();
+  },
+  prev(){
+    if (this.i > 0){ this.i--; this.show(); }
+  },
+  finish(){
+    $('#tourOverlay').style.display = 'none';
+    if (this._bound){
+      window.removeEventListener('resize', this._bound.reposition);
+      window.removeEventListener('scroll', this._bound.reposition, true);
+      document.removeEventListener('keydown', this._bound.key);
+    }
+    if (App.user) localStorage.setItem(this.key(), '1');
+  }
 };
+
+/* 兼容旧入口：盾牌按钮 / 帮助中心「新手引导」 */
+App.guide = { start(){ App.tour.start(); }, close(){ App.tour.finish(); } };
 
 /* ================================================================
    初始化 & 全局事件
@@ -1851,9 +2291,11 @@ function init(){
   const toStep2 = $('#toStep2');
   if (toStep2) toStep2.onclick = () => W.goto(2);
 
-  // 引导
-  const guideNext = $('#guideNext');
-  if (guideNext) guideNext.onclick = () => App.guide.next();
+  // 新手分步指引
+  const tn = $('#tourNextBtn'), tp = $('#tourPrev'), ts = $('#tourSkip');
+  if (tn) tn.onclick = () => App.tour.next();
+  if (tp) tp.onclick = () => App.tour.prev();
+  if (ts) ts.onclick = () => App.tour.finish();
 
   // 视图切换（我的单据：列表/卡片/表格）
   const vs = $('#viewSwitch');
