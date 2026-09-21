@@ -1,4 +1,4 @@
-/* ================================================================
+﻿/* ================================================================
    智汇签 · 校园报销审批平台 —— 设计系统 v2
    方向：暖纸底 + 学院墨绿 + 赭石点缀（参考 uigradients 低饱和自然色系）
    图标：IconPark（icons.js）  图片：Pexels（assets/）
@@ -742,8 +742,8 @@ body.touring{overflow:hidden}
 .detail-table .e-row input[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1}
 .detail-table .e-row select{
   cursor:pointer;appearance:none;-webkit-appearance:none;
+  border-left:3px solid var(--primary);
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2393A097' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 9px center;padding-right:28px;
 }
 .detail-table .e-row select:hover{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
 .detail-table .e-row select:focus{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231E5C4F' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
