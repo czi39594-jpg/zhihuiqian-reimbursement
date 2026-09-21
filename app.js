@@ -506,6 +506,14 @@ App.go = function(page){
 /* ================================================================
    工作台
    ================================================================ */
+App.pbFilter = 'current'; // current | done | todo | reject
+App.switchPbFilter = function(f){
+  App.pbFilter = f;
+  document.querySelectorAll('#pbLegend .pb-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.filter === f);
+  });
+  App.renderDashboard();
+};
 App.renderDashboard = function(){
   const rows = App.mineRows;
   const isAp = isApprover();
@@ -530,18 +538,36 @@ App.renderDashboard = function(){
       <div><div class="num">${val}</div><div class="lab">${lab} ${trend}</div></div>
     </div>`).join('');
 
-  // 进程看板：审批中的单据
-  const active = rows.filter(r => r.status === 'APPROVING');
+  // 进程看板：按筛选状态展示
+  const f = App.pbFilter;
   const pbSub = $('#pbSub');
-  if (isAp && App.todoRows.length){
-    pbSub.innerHTML = `当前有 <b style="color:var(--primary)">${App.todoRows.length}</b> 张单据待您审批，超时单自动置顶`;
-    $('#pbLanes').innerHTML = App.todoRows.slice(0, 4).map(r => todoLane(r)).join('');
-  } else if (active.length){
-    pbSub.innerHTML = `当前有 <b style="color:var(--primary)">${active.length}</b> 张单据正在审批，点击可查看详情`;
-    $('#pbLanes').innerHTML = active.slice(0, 4).map(r => claimLane(r)).join('');
+  let list = [], subText = '', laneFn = claimLane;
+  if (f === 'current'){
+    if (isAp && App.todoRows.length){
+      list = App.todoRows; subText = `当前有 <b style="color:var(--primary)">${App.todoRows.length}</b> 张单据待您审批，超时单自动置顶`;
+      laneFn = todoLane;
+    } else {
+      list = rows.filter(r => r.status === 'APPROVING');
+      subText = `当前有 <b style="color:var(--primary)">${list.length}</b> 张单据正在审批，点击可查看详情`;
+    }
+  } else if (f === 'done'){
+    list = rows.filter(r => r.status === 'APPROVED');
+    subText = `共 <b style="color:var(--primary)">${list.length}</b> 张单据已办结`;
+  } else if (f === 'todo'){
+    list = isAp ? App.todoRows : [];
+    subText = isAp ? `待您处理的单据共 <b style="color:var(--primary)">${list.length}</b> 张` : '当前账号无待处理任务';
+    laneFn = isAp ? todoLane : claimLane;
+  } else if (f === 'reject'){
+    list = rows.filter(r => r.status === 'RETURNED' || r.status === 'REJECTED');
+    subText = `被退回或驳回的单据共 <b style="color:var(--primary)">${list.length}</b> 张，可修改后重新提交`;
+  }
+  if (list.length){
+    pbSub.innerHTML = subText;
+    $('#pbLanes').innerHTML = list.slice(0, 5).map(r => laneFn(r)).join('');
   } else {
-    pbSub.textContent = '暂无进行中的单据，发起一笔报销试试吧';
-    $('#pbLanes').innerHTML = '<div class="pb-empty"><div class="pb-empty-ico">' + IP.svg('folder') + '</div>当前没有进行中的单据</div>';
+    pbSub.textContent = subText ? subText.replace(/<[^>]+>/g, '') : '暂无相关单据';
+    const emptyTip = f === 'current' ? '当前没有进行中的单据' : f === 'done' ? '暂无已完成的单据' : f === 'todo' ? (isAp ? '暂无待您处理的单据' : '当前账号无待处理任务') : '暂无被退回或驳回的单据';
+    $('#pbLanes').innerHTML = '<div class="pb-empty"><div class="pb-empty-ico">' + IP.svg('folder') + '</div>' + emptyTip + '</div>';
   }
 
   // 选择报销类型
@@ -582,6 +608,12 @@ App.renderDashboard = function(){
 function claimLane(r){
   const [bg, fg] = COLORS[r.claimType === 'TRAVEL_APPLY' ? 'blue' : 'green'];
   const node = NODE_LABEL[r.currentNode] || r.currentNode || '';
+  const st = r.status;
+  // 根据单据状态决定节点样式
+  let nodeCls = 'current', nodeName = node || '审批中', handler = r.currentAssigneeName || '', lineCls = '';
+  if (st === 'APPROVED'){ nodeCls = 'done'; nodeName = '已办结'; handler = '财务已复核'; lineCls = 'done'; }
+  else if (st === 'REJECTED' || st === 'RETURNED'){ nodeCls = 'reject'; nodeName = st === 'REJECTED' ? '已驳回' : '已退回'; handler = ''; lineCls = 'reject'; }
+  const dotIcon = nodeCls === 'done' ? IP.svg('check') : nodeCls === 'reject' ? '×' : '●';
   return `<div class="pb-lane" onclick="App.openDrawer(${r.id})">
     <div class="pb-lane-head">
       <span class="pb-lane-type" style="background:${bg};color:${fg}">${TYPES[r.claimType] ? TYPES[r.claimType].icon : ''} ${r.typeLabel}</span>
@@ -591,9 +623,8 @@ function claimLane(r){
       <span class="pb-lane-id">${esc(r.claimNo || '')}</span>
     </div>
     <div class="pb-track">
-      <div class="pb-node current"><div class="pb-handler">${esc(r.currentAssigneeName || '')}</div><div class="pb-dot">●</div><div class="pb-name">${esc(node || '审批中')}</div></div>
-      <div class="pb-line"></div>
-      <div class="pb-node todo"><div class="pb-dot"></div><div class="pb-name">后续节点</div></div>
+      <div class="pb-node ${nodeCls}">${handler ? '<div class="pb-handler">'+esc(handler)+'</div>' : ''}<div class="pb-dot">${dotIcon}</div><div class="pb-name">${esc(nodeName)}</div></div>
+      ${lineCls ? `<div class="pb-line ${lineCls}"></div><div class="pb-node done"><div class="pb-dot">${IP.svg('check')}</div><div class="pb-name">完结</div></div>` : `<div class="pb-line"></div><div class="pb-node todo"><div class="pb-dot"></div><div class="pb-name">后续节点</div></div>`}
     </div>
   </div>`;
 }
@@ -2261,6 +2292,11 @@ function init(){
   $('#loginAccount').addEventListener('keydown', e => { if (e.key === 'Enter') App.login(); });
   $('#loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') App.login(); });
   $('#loginCaptcha').addEventListener('keydown', e => { if (e.key === 'Enter') App.login(); });
+
+  // 报销进程看板筛选 tab
+  $$('#pbLegend .pb-tab').forEach(tab => {
+    tab.onclick = () => App.switchPbFilter(tab.dataset.filter);
+  });
 
   // 导航
   $$('.nav-item').forEach(item => item.onclick = () => {
