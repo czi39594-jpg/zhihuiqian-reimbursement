@@ -390,9 +390,31 @@ function mockRow(o){
   }, o);
 }
 
+/* ---- 跨账号共享数据池（localStorage）：学生提交 → 审批人可见 ---- */
+const SHARED_KEY = 'zhx_shared_claims_v1';
+const SHARED = {
+  read(){ try { return JSON.parse(localStorage.getItem(SHARED_KEY) || '[]'); } catch(e){ return []; } },
+  write(list){ localStorage.setItem(SHARED_KEY, JSON.stringify(list)); },
+  add(row){ const list = this.read(); list.unshift(row); this.write(list); },
+  update(id, patch){ const list = this.read(); const i = list.findIndex(r => String(r.id) === String(id)); if (i >= 0){ Object.assign(list[i], patch); this.write(list); } },
+  remove(id){ this.write(this.read().filter(r => String(r.id) !== String(id))); }
+};
+/* 根据报销类型返回下一审批节点的分配人 */
+function nextAssignee(claimType){
+  // 演示用：所有类型第一站都到李主任（部门领导）
+  return { name: '李主任', username: 'li', node: 'LEADER' };
+}
+
 App.loadMockData = function(){
   const ap = isApprover(), fin = isFinance();
   const myName = App.user.realName;
+  const me = App.user.username;
+
+  /* —— 从共享池读取：分配给我的待办 + 我提交的单据 —— */
+  const shared = SHARED.read();
+  const sharedTodos = shared.filter(r => r.currentAssigneeUsername === me && r.status === 'APPROVING')
+    .map(r => mockRow(Object.assign({}, r, { todoId: Number('9' + String(r.id).slice(-5)) })));
+  const sharedMine = shared.filter(r => r.applicantUsername === me).map(r => mockRow(r));
 
   /* —— 待办：审批人 / 学院 / 财务 / 管理员可见 —— */
   App.todoRows = [];
@@ -400,22 +422,25 @@ App.loadMockData = function(){
     App.todoRows = [
       mockRow({ todoId: 501, id: 201, claimNo: 'SQ-2026-0921', claimType: 'TRAVEL_APPLY', status: 'APPROVING', currentNode: 'LEADER', amount: 2800, createdAt: '2026-09-20 08:42', applicantName: '张同学', reason: '赴杭州参加全国高校电子信息学术年会', currentAssigneeName: myName, timeout: false }),
       mockRow({ todoId: 502, id: 202, claimNo: 'BX-2026-0919', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'LEADER', amount: 2346.80, createdAt: '2026-09-19 16:05', applicantName: '王老师', reason: '南京产学研合作调研差旅费报销', currentAssigneeName: myName, timeout: true })
-    ];
+    ].concat(sharedTodos);
   }
   if (hasRole('COLLEGE')){
     App.todoRows = [
       mockRow({ todoId: 503, id: 203, claimNo: 'SQ-2026-0920', claimType: 'TRAVEL_APPLY', status: 'APPROVING', currentNode: 'COLLEGE', amount: 4200, createdAt: '2026-09-20 09:18', applicantName: '王老师', reason: '赴深圳开展智能传感项目联合攻关', currentAssigneeName: myName, timeout: false })
-    ];
+    ].concat(sharedTodos);
   }
   if (fin){
     App.todoRows = [
       mockRow({ todoId: 504, id: 204, claimNo: 'BX-2026-0918', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'FINANCE', amount: 3176.50, createdAt: '2026-09-18 14:22', applicantName: '张同学', reason: '杭州学术年会差旅费报销（高铁+住宿+补助）', currentAssigneeName: myName, timeout: false }),
       mockRow({ todoId: 505, id: 205, claimNo: 'BX-2026-0917', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: 'FINANCE', amount: 1289.00, createdAt: '2026-09-17 10:36', applicantName: '王老师', reason: '市内教学调研交通费报销', currentAssigneeName: myName, timeout: true })
-    ];
+    ].concat(sharedTodos);
+  }
+  if (sharedTodos.length && !ap && !fin && !hasRole('COLLEGE')){
+    App.todoRows = sharedTodos;
   }
 
-  /* —— 我的单据：每个角色都有自己提交过的单据 —— */
-  App.mineRows = [
+  /* —— 我的单据：预设 + 共享池里我提交的（按 id 去重） —— */
+  const presetMine = [
     mockRow({ id: 101, claimNo: 'SQ-2026-0921', claimType: 'TRAVEL_APPLY', status: 'APPROVING', currentNode: 'LEADER', amount: 2800, createdAt: '2026-09-20 08:42', applicantName: myName, reason: '赴杭州参加全国高校电子信息学术年会', currentAssigneeName: '李主任', timeout: false }),
     mockRow({ id: 102, claimNo: 'BX-2026-0918', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVING', currentNode: fin ? 'FINANCE' : 'LEADER', amount: 2346.80, createdAt: '2026-09-18 14:22', applicantName: myName, reason: '杭州学术年会差旅费报销（高铁+住宿+补助）', currentAssigneeName: fin ? myName : '李主任', timeout: false }),
     mockRow({ id: 103, claimNo: 'SQ-2026-0910', claimType: 'TRAVEL_APPLY', status: 'APPROVED', currentNode: null, amount: 1560, createdAt: '2026-09-10 09:05', applicantName: myName, reason: '南京产学研合作调研出差申请', currentAssigneeName: '', timeout: false }),
@@ -423,6 +448,8 @@ App.loadMockData = function(){
     mockRow({ id: 105, claimNo: 'SQ-2026-0922', claimType: 'TRAVEL_APPLY', status: 'DRAFT', currentNode: null, amount: 3200, createdAt: '2026-09-19 20:12', applicantName: myName, reason: '赴北京参加智能制造论坛（草稿）', currentAssigneeName: '', timeout: false }),
     mockRow({ id: 106, claimNo: 'BX-2026-0830', claimType: 'TRAVEL_CLAIM', typeLabel: '差旅报销', status: 'APPROVED', currentNode: null, amount: 4120.60, createdAt: '2026-08-30 11:26', applicantName: myName, reason: '暑期科研合作单位差旅报销', currentAssigneeName: '', timeout: false })
   ];
+  const seenIds = new Set(presetMine.map(r => r.id));
+  App.mineRows = presetMine.concat(sharedMine.filter(r => !seenIds.has(r.id)));
 
   /* —— 财务台账：财务 / 管理员可见全部报销单 —— */
   App.financeRows = fin ? [
@@ -1166,25 +1193,30 @@ W.mockSubmit = function(){
   const no = (isApply ? 'SQ-' : 'BX-') + new Date().getFullYear() + '-' + String(Date.now()).slice(-4);
   const reason = isApply ? p.reason : ($('#fReason').value.trim() || '差旅费用报销');
   const amount = isApply ? null : p.expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const assignee = nextAssignee(W.type);
   const row = mockRow({
     id: Number(String(Date.now()).slice(-6)),
     claimNo: no, claimType: W.type,
     typeLabel: isApply ? '出差申请' : '差旅报销',
-    status: 'APPROVING', currentNode: 'LEADER',
+    status: 'APPROVING', currentNode: assignee.node,
     amount: amount,
     createdAt: fmtNow(), applicantName: App.user.realName,
+    applicantUsername: App.user.username,
     reason: reason || '新建报销单',
-    currentAssigneeName: '李主任'
+    currentAssigneeName: assignee.name,
+    currentAssigneeUsername: assignee.username
   });
+  /* 写入共享池，审批人登录后可见 */
+  SHARED.add(row);
   const exist = App.mineRows.findIndex(r => String(r.id) === String(W.claimId));
   if (exist >= 0) App.mineRows[exist] = row; else App.mineRows.unshift(row);
-  App.notifies.unshift({ id: Date.now(), title: '提交成功：等待部门领导审批', content: no + ' ' + row.reason, readFlag: false, createdAt: fmtNow(), eventKey: 'status', bizType: 'CLAIM', bizId: row.id });
+  App.notifies.unshift({ id: Date.now(), title: '提交成功：等待' + assignee.name + '审批', content: no + ' ' + row.reason, readFlag: false, createdAt: fmtNow(), eventKey: 'status', bizType: 'CLAIM', bizId: row.id });
   App.notice.list = App.notifies;
   App.notice.updateBellBadge();
   W.reset();
   App.renderDashboard();
   App.go('mine');
-  toast('提交成功！单据已进入审批流程（演示模式）');
+  toast('提交成功！单据已流转至' + assignee.name + '（演示模式）');
 };
 
 /* 提交 */
@@ -1588,7 +1620,9 @@ App.mockDecide = function(action){
   const todo = App.todoRows.find(r => r.todoId === App.openTodoId);
   if (todo){
     App.todoRows = App.todoRows.filter(r => r.todoId !== App.openTodoId);
+    /* 更新共享池里的单据状态 */
     if (action === 'pass'){
+      SHARED.update(todo.id, { status: 'APPROVED', currentNode: null, currentAssigneeName: '', currentAssigneeUsername: '' });
       const mine = App.mineRows.find(r => r.id === todo.id);
       if (mine){ mine.status = 'APPROVED'; mine.currentNode = null; }
       const fin = App.financeRows.find(r => r.id === todo.id);
@@ -1596,8 +1630,10 @@ App.mockDecide = function(action){
       App.notifies.unshift({ id: Date.now(), title: '待办已处理：通过', content: todo.claimNo + ' ' + todo.reason, readFlag: true, createdAt: fmtNow(), eventKey: 'notice', bizType: null, bizId: null });
       toast('已通过（演示模式本地模拟）');
     } else {
+      const st = action === 'return' ? 'RETURNED' : 'REJECTED';
+      SHARED.update(todo.id, { status: st, currentNode: 'LEADER', currentAssigneeName: todo.applicantName, currentAssigneeUsername: '' });
       const mine = App.mineRows.find(r => r.id === todo.id);
-      if (mine){ mine.status = action === 'return' ? 'RETURNED' : 'REJECTED'; mine.currentNode = 'LEADER'; }
+      if (mine){ mine.status = st; mine.currentNode = 'LEADER'; }
       App.notifies.unshift({ id: Date.now(), title: action === 'return' ? '已退回申请人' : '已驳回', content: todo.claimNo + ' ' + comment, readFlag: true, createdAt: fmtNow(), eventKey: 'notice', bizType: null, bizId: null });
       toast(action === 'return' ? '已退回（演示模式）' : '已驳回（演示模式）');
     }
