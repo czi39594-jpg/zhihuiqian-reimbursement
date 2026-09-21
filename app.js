@@ -549,7 +549,7 @@ App.renderDashboard = function(){
     const [bg, fg] = COLORS[t.color];
     const dis = t.disabled ? ' style="opacity:.55;cursor:not-allowed"' : '';
     const click = t.disabled
-      ? ' onclick="toast(\'' + t.label + ' 即将上线，当前版本支持差旅报销\')"'
+      ? ' onclick="toast(\'' + t.label + ' 暂未开放\')"'
       : ' onclick="App.startCreate(\'' + k + '\')"';
     return `<div class="type-card"${dis}${click}>
       <div class="tc-top">
@@ -688,7 +688,7 @@ W.loadMeta = async function(){
 };
 
 App.startCreate = async function(type, editId){
-  if (TYPES[type] && TYPES[type].disabled){ toast(TYPES[type].label + ' 即将上线，当前版本支持差旅报销', 'err'); return; }
+  if (TYPES[type] && TYPES[type].disabled){ toast(TYPES[type].label + ' 暂未开放', 'err'); return; }
   App.go('create');
   W.reset();
   W.type = type;
@@ -703,7 +703,7 @@ function renderPickGrid(){
     const [bg, fg] = COLORS[t.color];
     const dis = t.disabled ? ' style="opacity:.55;cursor:not-allowed"' : '';
     const click = t.disabled
-      ? ' onclick="toast(\'' + t.label + ' 即将上线\')"'
+      ? ' onclick="toast(\'' + t.label + ' 暂未开放\')"'
       : ' onclick="W.pick(\'' + k + '\')"';
     return `<div class="pick-card ${W.type === k ? 'sel' : ''}"${dis}${click}>
       <div class="tc-ico" style="background:${bg};color:${fg}">${t.icon}</div>
