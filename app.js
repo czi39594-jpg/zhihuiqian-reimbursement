@@ -1949,9 +1949,83 @@ function timelineNode(n){
 }
 
 App.downloadMyPdf = async function(id){
-  if (App.mockMode){ toast('演示模式暂不支持 PDF 导出', 'err'); return; }
+  if (App.mockMode){ App.mockExportPdf(id); return; }
   try {
     await downloadFile('/api/applicant/pdf/export?id=' + id, '报销单_' + id + '.pdf');
+    toast('PDF 已导出');
+  } catch(e){ toast(errMsg(e), 'err'); }
+};
+
+/* 演示模式：生成可打印的报销单详情 HTML，自动弹出打印对话框（用户选"另存为 PDF"） */
+App.mockExportPdf = function(id){
+  const row = App.mineRows.find(r => r.id === id)
+    || App.todoRows.find(r => r.id === id)
+    || App.financeRows.find(r => r.id === id)
+    || SHARED.read().find(r => String(r.id) === String(id));
+  if (!row){ toast('找不到报销单 #' + id, 'err'); return; }
+  const st = STATUS[row.status] || { label: row.status, cls: 'tag-gray' };
+  const typeLabel = row.typeLabel || (TYPES[row.claimType] ? TYPES[row.claimType].label : row.claimType);
+  const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>报销单 - ${row.claimNo}</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  body { font-family: "PingFang SC","Microsoft YaHei",sans-serif; color:#22312B; padding:0; margin:0; }
+  .wrap { max-width:720px; margin:0 auto; padding:40px 48px; }
+  .hdr { border-bottom:2px solid #1E5C4F; padding-bottom:16px; margin-bottom:24px; }
+  .hdr h1 { font-family:"Songti SC","STSong",serif; font-size:28px; letter-spacing:4px; color:#1E5C4F; margin:0 0 4px 0; }
+  .hdr .sub { font-size:13px; color:#5C6B63; letter-spacing:2px; }
+  .status { float:right; font-size:13px; padding:4px 12px; border-radius:6px; background:#E7EFEB; color:#1E5C4F; font-weight:600; }
+  table { width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px; }
+  th { background:#F5F3EC; text-align:left; padding:10px 12px; border:1px solid #E4E1D6; font-weight:600; color:#5C6B63; width:120px; }
+  td { padding:10px 12px; border:1px solid #E4E1D6; }
+  .amt { font-size:22px; font-weight:700; color:#1E5C4F; }
+  .section-title { font-size:15px; font-weight:700; color:#1E5C4F; margin:24px 0 10px; padding-left:10px; border-left:3px solid #1E5C4F; }
+  .chain-step { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:13px; }
+  .chain-step .dot { width:14px; height:14px; border-radius:50%; background:#D8D4C6; border:2px solid #D8D4C6; flex:none; }
+  .chain-step.done .dot { background:#3E7D5C; border-color:#3E7D5C; }
+  .chain-step.current .dot { background:#fff; border-color:#1E5C4F; box-shadow:0 0 0 3px rgba(30,92,79,.2); }
+  .chain-step .label { flex:1; }
+  .chain-step .who { color:#5C6B63; font-size:12px; }
+  .foot { margin-top:40px; padding-top:12px; border-top:1px dashed #E4E1D6; font-size:11px; color:#93A097; text-align:center; }
+  @media print { body { background:#fff; } .no-print { display:none !important; } }
+  .no-print { text-align:center; margin-bottom:20px; }
+  .no-print button { background:#1E5C4F; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-size:13px; cursor:pointer; }
+</style></head><body>
+<div class="wrap">
+  <div class="hdr">
+    <span class="status">${st.label}</span>
+    <h1>智汇签 · 报销单</h1>
+    <div class="sub">ZHIXIANG REIMBURSEMENT FORM</div>
+  </div>
+  <div class="no-print"><button onclick="window.print()">🖨 打印 / 另存为 PDF</button></div>
+  <table>
+    <tr><th>单据编号</th><td>${row.claimNo}</td><th>报销类型</th><td>${typeLabel}</td></tr>
+    <tr><th>报销事由</th><td colspan="3">${esc(row.reason || '')}</td></tr>
+    <tr><th>申请人</th><td>${esc(row.applicantName || '')}</td><th>提交时间</th><td>${esc(row.createdAt || '')}</td></tr>
+    <tr><th>报销金额</th><td colspan="3" class="amt">¥ ${row.amount != null ? row.amount.toFixed(2) : '—'}</td></tr>
+  </table>
+  <div class="section-title">审批进度</div>
+  <div class="chain-step done"><span class="dot"></span><span class="label">提交申请</span><span class="who">${esc(row.applicantName || '')}</span></div>
+  <div class="chain-step ${row.status === 'APPROVING' ? 'current' : (row.status === 'APPROVED' ? 'done' : '')}"><span class="dot"></span><span class="label">部门领导审批</span><span class="who">李主任</span></div>
+  ${row.claimType === 'TRAVEL_APPLY' ? `<div class="chain-step ${row.status === 'APPROVED' ? 'done' : ''}"><span class="dot"></span><span class="label">学院审批</span><span class="who">周院长</span></div>` : ''}
+  ${row.claimType !== 'TRAVEL_APPLY' ? `<div class="chain-step ${row.currentNode === 'FINANCE' ? 'current' : (row.status === 'APPROVED' ? 'done' : '')}"><span class="dot"></span><span class="label">财务复核</span><span class="who">陈会计</span></div>` : ''}
+  ${row.status === 'APPROVED' ? `<div class="chain-step done"><span class="dot"></span><span class="label">已办结</span></div>` : ''}
+  ${row.status === 'RETURNED' || row.status === 'REJECTED' ? `<div class="chain-step"><span class="dot" style="background:#B4463C;border-color:#B4463C"></span><span class="label">${row.status === 'RETURNED' ? '已退回' : '已驳回'}</span></div>` : ''}
+  <div class="foot">本单据由智汇签·校园智能报销审批平台生成 · 打印时间 ${fmtNow()}</div>
+</div>
+<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };</script>
+</body></html>`;
+  const win = window.open('', '_blank', 'width=800,height=1000');
+  if (!win){ toast('浏览器阻止了弹窗，请允许本站弹窗后重试', 'err'); return; }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+};
+
+App.exportFinancePdf = async function(id){
+  if (App.mockMode){ App.mockExportPdf(id); return; }
+  try {
+    await downloadFile('/api/finance/pdf/export?id=' + id, '报销单_' + id + '.pdf');
     toast('PDF 已导出');
   } catch(e){ toast(errMsg(e), 'err'); }
 };
