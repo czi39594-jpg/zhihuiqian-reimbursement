@@ -1171,6 +1171,18 @@ function todayStr(){
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
+/* 银行卡号 Luhn（模 10）校验：银联卡号末位为前 18 位按 Luhn 算法推出的校验位 */
+function luhnValid(num){
+  const s = String(num || '').replace(/\s/g, '');
+  if (!/^\d+$/.test(s)) return false;
+  let sum = 0;
+  for (let i = 0; i < s.length; i++){
+    let d = Number(s[s.length - 1 - i]);
+    if (i % 2 === 1){ d *= 2; if (d > 9) d -= 9; }
+    sum += d;
+  }
+  return sum % 10 === 0;
+}
 W.readExpenses = function(){
   const list = [...document.querySelectorAll('#expenseBody .e-row')].map(tr => ({
     expenseTypeCode: tr.querySelector('.eType').value || null,
@@ -1426,6 +1438,7 @@ W.validateStep2 = function(){
     const acc = $('#fPayeeAccount').value.trim();
     if (!acc) throw new Error('请填写本人银行卡号');
     if (!/^\d{19}$/.test(acc)) throw new Error('银行卡号必须为 19 位数字（当前 ' + acc.replace(/\D/g, '').length + ' 位），请核对后重新填写');
+    if (!luhnValid(acc)) throw new Error('银行卡号校验未通过（Luhn 校验码不符），请核对卡号是否输入正确');
   }
 };
 W.validateStep3 = function(){
@@ -1440,7 +1453,17 @@ W.validateStep3 = function(){
   const total = W.expenses.reduce((s, e) => s + (e.amount || 0), 0);
   if (!(total > 0)) throw new Error('报销金额必须大于 0（金额由费用明细自动汇总，请检查明细）');
 };
-/* 发生日期校验：不可晚于今天；与关联出差申请的出差时间比对，不一致时弹窗说明 */
+/* 事由归一化：去通用词与非中英数字符，便于比对报销事由与出差申请事由是否相关 */
+function normReasonText(s){
+  return (s || '').replace(/出差申请|差旅费?|报销|费用|申请|相关|赴|参加|的|与?/g, '').replace(/[^一-龥A-Za-z0-9]/g, '');
+}
+function reasonBigrams(s){
+  const t = normReasonText(s);
+  const set = new Set();
+  for (let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2));
+  return [...set];
+}
+/* 一致性核对：发生日期不得晚于今天；与关联出差申请核对时间与事由，不一致弹窗说明，用户确认后可继续 */
 W.checkExpenseDates = function(onPass){
   const today = todayStr();
   const future = W.expenses.find(e => e.occurredOn && e.occurredOn > today);
@@ -1448,14 +1471,27 @@ W.checkExpenseDates = function(onPass){
     toast('发生日期 ' + future.occurredOn + ' 晚于今天，报销不可提前申请，请修改', 'err');
     return;
   }
+  const warnings = [];
   const saId = $('#fSourceApply') ? $('#fSourceApply').value : null;
   const sa = W.meta.applies.find(a => a.id == saId);
-  if (sa && sa.startDate && sa.endDate){
-    const out = W.expenses.filter(e => e.occurredOn && (e.occurredOn < sa.startDate || e.occurredOn > sa.endDate));
-    if (out.length){
-      const ok = confirm('时间不一致提醒：\n\n费用发生日期（' + out[0].occurredOn + (out.length > 1 ? ' 等 ' + out.length + ' 笔' : '') + '）不在关联出差申请 ' + sa.claimNo + ' 的出差时间（' + sa.startDate + ' 至 ' + sa.endDate + '）范围内。\n\n若实际行程确有变动，可点击「确定」继续提交；点击「取消」返回修改。');
-      if (!ok) return;
+  if (sa){
+    /* 时间一致性：费用发生日期应落在出差时间范围内 */
+    if (sa.startDate && sa.endDate){
+      const out = W.expenses.filter(e => e.occurredOn && (e.occurredOn < sa.startDate || e.occurredOn > sa.endDate));
+      if (out.length){
+        warnings.push('• 时间不一致：费用发生日期（' + out[0].occurredOn + (out.length > 1 ? ' 等 ' + out.length + ' 笔' : '') + '）不在出差申请 ' + sa.claimNo + ' 的出差时间（' + sa.startDate + ' 至 ' + sa.endDate + '）范围内。');
+      }
     }
+    /* 事由一致性：报销事由应与出差申请事由对应（核心词 2-gram 无交集则提醒） */
+    const myB = reasonBigrams($('#fReason') ? $('#fReason').value : '');
+    const saB = reasonBigrams(sa.reason);
+    if (myB.length && saB.length && !myB.some(b => saB.includes(b))){
+      warnings.push('• 事由不一致：报销事由「' + ($('#fReason').value.trim()) + '」与关联出差申请事由「' + sa.reason + '」内容不对应，请确认是否选错了关联申请。');
+    }
+  }
+  if (warnings.length){
+    const ok = confirm('关联出差申请内容核对提醒：\n\n' + warnings.join('\n') + '\n\n若实际行程 / 事由确有变动，可点击「确定」继续提交；点击「取消」返回修改。');
+    if (!ok) return;
   }
   onPass();
 };
@@ -1500,6 +1536,7 @@ W.validate = function(){
     if (!p.sourceApplyId) throw new Error('请选择关联的出差申请');
     if (!p.payeeBank || !p.payeeAccount) throw new Error('请填写收款银行与账号');
     if (!/^\d{19}$/.test(p.payeeAccount)) throw new Error('银行卡号必须为 19 位数字');
+    if (!luhnValid(p.payeeAccount)) throw new Error('银行卡号校验未通过（Luhn 校验码不符），请核对卡号');
     if (!p.expenses.length) throw new Error('请至少填写一条费用明细');
     if (p.expenses.some(e => !e.amount || e.amount <= 0)) throw new Error('费用明细金额必须大于 0');
     if (!p.invoices.length) throw new Error('请至少上传一张发票');
