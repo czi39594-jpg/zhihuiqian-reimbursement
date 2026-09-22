@@ -1386,6 +1386,88 @@ W.renderLegsEdit = function(){
   if (!W.legs.length) W.addLeg(true);
 };
 
+/* 导出当前表单为 JSON（演示模式/有后端均可，纯前端本地下载） */
+W.exportForm = function(){
+  try {
+    const payload = W.buildPayload();
+    const data = {
+      __form: 'zhx_claim_v1',
+      type: W.type,
+      typeLabel: TYPES[W.type] ? TYPES[W.type].label : W.type,
+      exportedAt: fmtNow(),
+      payload: payload
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '报销单_' + (W.claimId || '草稿') + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+    toast('表单已导出为 JSON');
+  } catch(e){ toast('导出失败：' + errMsg(e), 'err'); }
+};
+
+/* 从 JSON 文件导入表单（覆盖当前草稿） */
+W.importForm = function(input){
+  const file = input.files && input.files[0];
+  if (!file){ return; }
+  const reader = new FileReader();
+  reader.onload = function(){
+    try {
+      const data = JSON.parse(reader.result);
+      const payload = data.payload || data;
+      if (!payload || typeof payload !== 'object') throw new Error('文件格式不正确');
+      /* 根据导入数据的 type 切换表单类型 */
+      if (data.type && TYPES[data.type]){
+        W.type = data.type;
+      } else if (payload.reason && payload.persons){
+        W.type = 'TRAVEL_APPLY';
+      } else if (payload.expenses){
+        W.type = 'TRAVEL_CLAIM';
+      }
+      W.claimId = payload.id || null;
+      W.expenses = Array.isArray(payload.expenses) ? payload.expenses : [];
+      W.invoices = Array.isArray(payload.invoices) ? payload.invoices : [];
+      /* 回填基本字段（出差申请 / 差旅报销共用） */
+      if (payload.reason) $('#fReason').value = payload.reason;
+      if (payload.remark != null && $('#fRemark2')) $('#fRemark2').value = payload.remark;
+      if (payload.startDate && $('#fgDateStart input')) $('#fgDateStart input').value = payload.startDate;
+      if (payload.endDate && $('#fgDateEnd input')) $('#fgDateEnd input').value = payload.endDate;
+      if (payload.payeeBank) $('#fPayeeBank').value = payload.payeeBank;
+      if (payload.payeeAccount) $('#fPayeeAccount').value = payload.payeeAccount;
+      /* 人员行 / 行程行回填（出差申请） */
+      W.persons = Array.isArray(payload.persons) ? payload.persons : [];
+      W.legs = Array.isArray(payload.legs) ? payload.legs : [];
+      W.renderPersonsEdit && W.renderPersonsEdit();
+      W.renderLegsEdit && W.renderLegsEdit();
+      /* 费用明细回填（差旅报销）：清空表格逐行重建 */
+      const expBody = $('#expenseBody');
+      if (expBody && W.expenses.length){
+        expBody.innerHTML = '';
+        W.expenses.forEach(function(e){
+          W.addExpense(true);
+          const tr = expBody.lastElementChild;
+          if (tr){
+            if (e.expenseTypeCode) tr.querySelector('.eType').value = e.expenseTypeCode;
+            if (e.occurredOn) tr.querySelector('.eDate').value = e.occurredOn;
+            if (e.amount != null) tr.querySelector('.eAmt').value = e.amount;
+            if (e.remark) tr.querySelector('.eRemark').value = e.remark;
+          }
+        });
+        W.expenses = W.readExpenses();
+      }
+      W.renderInvoices && W.renderInvoices();
+      W.syncClaimAmount && W.syncClaimAmount();
+      toast('已从 JSON 导入表单（可继续编辑后提交）');
+    } catch(e){
+      toast('导入失败：' + e.message, 'err');
+    }
+    input.value = '';
+  };
+  reader.onerror = function(){ toast('读取文件失败', 'err'); input.value = ''; };
+  reader.readAsText(file);
+};
+
 App.wizard = W;
 
 /* ================================================================
