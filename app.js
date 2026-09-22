@@ -665,9 +665,11 @@ App.renderDashboard = function(){
   }
 
   // 选择报销类型
+  const myIdentity = (App.user && App.user.identity) || 'teacher';
   $('#typeGrid').innerHTML = Object.entries(TYPES).map(([k, t]) => {
     const [bg, fg] = COLORS[t.color];
     const dis = t.disabled ? ' style="opacity:.55;cursor:not-allowed"' : '';
+    const chainText = t.chain ? (t.chain[myIdentity] || t.chain.teacher) : '敬请期待';
     const click = t.disabled
       ? ' onclick="toast(\'' + t.label + ' 暂未开放\')"'
       : ' onclick="App.startCreate(\'' + k + '\')"';
@@ -678,7 +680,7 @@ App.renderDashboard = function(){
       </div>
       <h4>${t.label}</h4>
       <p>${t.desc}</p>
-      <div class="tc-chain">${t.chain ? t.chain : '敬请期待'}</div>
+      <div class="tc-chain">${chainText}</div>
     </div>`;
   }).join('');
 
@@ -699,15 +701,41 @@ App.renderDashboard = function(){
     : '<li style="cursor:pointer" onclick="App.notice.open()"><span class="nt-dot dot-gray"></span><div><b>暂无通知</b><p>提交或审批单据后会在这里收到消息，点击查看通知中心</p></div></li>';
 };
 
+/* 计算单据的完整审批节点链（公共：看板 / 详情抽屉复用）
+   学生提交 FUND/PURCHASE/ACTIVITY 时链路含指导老师环节 */
+function claimChain(r){
+  const idt = (MOCK_USERS[r.applicantUsername] && MOCK_USERS[r.applicantUsername].identity) || 'teacher';
+  const needAdvisor = ['FUND','PURCHASE','ACTIVITY'].indexOf(r.claimType) >= 0 && idt === 'student';
+  if (r.claimType === 'TRAVEL_APPLY') return ['LEADER','COLLEGE'];
+  if (r.claimType === 'FUND')     return needAdvisor ? ['TEACHER_SPONSOR','COLLEGE','FINANCE'] : ['COLLEGE','FINANCE'];
+  if (r.claimType === 'PURCHASE') return needAdvisor ? ['TEACHER_SPONSOR','LEADER','ASSET','FINANCE'] : ['LEADER','ASSET','FINANCE'];
+  if (r.claimType === 'ACTIVITY') return needAdvisor ? ['TEACHER_SPONSOR','STUDENT_AFFAIR','FINANCE'] : ['STUDENT_AFFAIR','FINANCE'];
+  return ['LEADER','FINANCE']; // TRAVEL_CLAIM 及兜底
+}
+
+/* 看板单条轨道：渲染完整链路（已通过绿勾 → 当前高亮 → 待处理灰显） */
 function claimLane(r){
   const [bg, fg] = COLORS[r.claimType === 'TRAVEL_APPLY' ? 'blue' : 'green'];
-  const node = NODE_LABEL[r.currentNode] || r.currentNode || '';
-  const st = r.status;
-  // 根据单据状态决定节点样式
-  let nodeCls = 'current', nodeName = node || '审批中', handler = r.currentAssigneeName || '', lineCls = '';
-  if (st === 'APPROVED'){ nodeCls = 'done'; nodeName = '已办结'; handler = '财务已复核'; lineCls = 'done'; }
-  else if (st === 'REJECTED' || st === 'RETURNED'){ nodeCls = 'reject'; nodeName = st === 'REJECTED' ? '已驳回' : '已退回'; handler = ''; lineCls = 'reject'; }
-  const dotIcon = nodeCls === 'done' ? IP.svg('check') : nodeCls === 'reject' ? '×' : '●';
+  const chain = claimChain(r);
+  const idx = r.currentNode ? chain.indexOf(r.currentNode) : -1;
+  const rejected = r.status === 'REJECTED' || r.status === 'RETURNED';
+  // 组装节点 HTML：提交起点 + 各审批节点，节点之间用线连接
+  const parts = [];
+  const submitDone = r.status !== 'DRAFT';
+  parts.push(`<div class="pb-node done"><div class="pb-dot">${IP.svg('check')}</div><div class="pb-name">提交</div><div class="pb-who">${esc(r.applicantName || '')}</div></div>`);
+  chain.forEach((node, i) => {
+    let cls = 'todo', icon = '';
+    if (r.status === 'APPROVED'){ cls = 'done'; icon = IP.svg('check'); }
+    else if (rejected && i === idx){ cls = 'reject'; icon = '×'; }
+    else if (i < idx){ cls = 'done'; icon = IP.svg('check'); }
+    else if (i === idx){ cls = 'current'; icon = '●'; }
+    const lineCls = cls === 'done' ? 'done' : (cls === 'reject' ? 'reject' : '');
+    const who = (NODE_ASSIGNEE[node] && NODE_ASSIGNEE[node].name) || '';
+    const curHandler = cls === 'current' ? (r.currentAssigneeName || who) : '';
+    const nodeName = r.status === 'APPROVED' && i === chain.length - 1 ? '已办结' : NODE_LABEL[node];
+    parts.push(`<div class="pb-line ${lineCls}"></div>`);
+    parts.push(`<div class="pb-node ${cls}">${curHandler ? '<div class="pb-handler">'+esc(curHandler)+'</div>' : ''}<div class="pb-dot">${icon}</div><div class="pb-name">${esc(nodeName)}</div>${cls === 'done' && who ? '<div class="pb-who">'+esc(who)+'</div>' : ''}</div>`);
+  });
   return `<div class="pb-lane" onclick="App.openDrawer(${r.id})">
     <div class="pb-lane-head">
       <span class="pb-lane-type" style="background:${bg};color:${fg}">${TYPES[r.claimType] ? TYPES[r.claimType].icon : ''} ${r.typeLabel}</span>
@@ -716,14 +744,26 @@ function claimLane(r){
       <span class="pb-lane-amount">${r.amount != null ? money(r.amount) : '—'}</span>
       <span class="pb-lane-id">${esc(r.claimNo || '')}</span>
     </div>
-    <div class="pb-track">
-      <div class="pb-node ${nodeCls}">${handler ? '<div class="pb-handler">'+esc(handler)+'</div>' : ''}<div class="pb-dot">${dotIcon}</div><div class="pb-name">${esc(nodeName)}</div></div>
-      ${lineCls ? `<div class="pb-line ${lineCls}"></div><div class="pb-node done"><div class="pb-dot">${IP.svg('check')}</div><div class="pb-name">完结</div></div>` : `<div class="pb-line"></div><div class="pb-node todo"><div class="pb-dot"></div><div class="pb-name">后续节点</div></div>`}
-    </div>
+    <div class="pb-track">${parts.join('')}</div>
   </div>`;
 }
+/* 待办轨道：同样展示完整链路，当前节点气泡显示"待您处理" */
 function todoLane(r){
   const [bg, fg] = COLORS[r.claimType === 'TRAVEL_APPLY' ? 'blue' : 'green'];
+  const chain = claimChain(r);
+  const idx = r.currentNode ? chain.indexOf(r.currentNode) : -1;
+  const parts = [];
+  parts.push(`<div class="pb-node done"><div class="pb-dot">${IP.svg('check')}</div><div class="pb-name">提交</div><div class="pb-who">${esc(r.applicantName || '')}</div></div>`);
+  chain.forEach((node, i) => {
+    let cls = 'todo', icon = '';
+    if (i < idx){ cls = 'done'; icon = IP.svg('check'); }
+    else if (i === idx){ cls = 'current'; icon = '●'; }
+    const lineCls = cls === 'done' ? 'done' : '';
+    const who = (NODE_ASSIGNEE[node] && NODE_ASSIGNEE[node].name) || '';
+    const curHandler = cls === 'current' ? ('待您处理 · ' + (r.currentAssigneeName || who)) : '';
+    parts.push(`<div class="pb-line ${lineCls}"></div>`);
+    parts.push(`<div class="pb-node ${cls}">${curHandler ? '<div class="pb-handler">'+esc(curHandler)+'</div>' : ''}<div class="pb-dot">${icon}</div><div class="pb-name">${esc(NODE_LABEL[node] || node)}</div>${cls === 'done' && who ? '<div class="pb-who">'+esc(who)+'</div>' : ''}</div>`);
+  });
   return `<div class="pb-lane" onclick="App.openTodoDrawer(${r.todoId})">
     <div class="pb-lane-head">
       <span class="pb-lane-type" style="background:${bg};color:${fg}">${TYPES[r.claimType] ? TYPES[r.claimType].icon : ''} ${r.typeLabel}</span>
@@ -732,9 +772,7 @@ function todoLane(r){
       <span class="pb-lane-amount">${r.amount != null ? money(r.amount) : '—'}</span>
       <span class="pb-lane-id">${esc(r.claimNo || '')}</span>
     </div>
-    <div class="pb-track">
-      <div class="pb-node current"><div class="pb-handler">待您处理</div><div class="pb-dot">●</div><div class="pb-name">${esc(NODE_LABEL[r.currentNode] || r.currentNode || '审批中')}</div></div>
-    </div>
+    <div class="pb-track">${parts.join('')}</div>
   </div>`;
 }
 function miniRow(r, isTodo){
