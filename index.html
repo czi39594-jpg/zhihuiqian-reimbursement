@@ -8,7 +8,7 @@
 <meta http-equiv="Expires" content="0">
 <title>智汇签 · 校园智能报销审批平台</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231E5C4F'/%3E%3Cpath d='M16 33l11 11 21-24' stroke='white' stroke-width='7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="styles.css?v=118">
+<link rel="stylesheet" href="styles.css?v=119">
 </head>
 <body>
 
@@ -121,7 +121,7 @@
       </button>
       <div class="topbar-search">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        <input placeholder="搜索单号 / 事由 / 项目编号…">
+        <input id="topSearch" placeholder="搜索单号 / 事由 / 项目编号，回车搜索">
       </div>
       <div class="topbar-right">
         <button class="icon-btn" onclick="App.guide.start()" title="新手引导">
@@ -160,7 +160,7 @@
               <p id="pbSub">正在审批中的单据，实时查看每个流程节点的当前位置</p>
             </div>
             <div class="pb-head-actions">
-              <button class="btn-ghost" onclick="App.go('mine')">查看全部单据</button>
+              <button class="btn-ghost" onclick="App.goMine('all')">查看全部单据</button>
               <button class="btn-primary" onclick="App.go('create')"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>发起报销</button>
             </div>
           </div>
@@ -177,7 +177,7 @@
           <div class="panel">
             <div class="panel-head">
               <h3 id="dashListTitle">进行中的报销</h3>
-              <a onclick="App.go('mine')">全部单据 →</a>
+              <a onclick="App.goMine('all')">全部单据 →</a>
             </div>
             <div id="dashList" class="mini-list"></div>
           </div>
@@ -273,7 +273,7 @@
             <div class="form-card" id="formExtra"></div>
             <div class="form-foot">
               <button class="btn-ghost" onclick="App.wizard.goto(1)">上一步</button>
-              <button class="btn-primary" onclick="App.wizard.goto(3)">下一步</button>
+              <button class="btn-primary" onclick="App.wizard.next2()">下一步</button>
             </div>
           </div>
 
@@ -283,7 +283,7 @@
             <div class="form-card" id="formExtra3"></div>
             <div class="form-foot">
               <button class="btn-ghost" onclick="App.wizard.goto(2)">上一步</button>
-              <button class="btn-primary" onclick="App.wizard.goto(4)">下一步</button>
+              <button class="btn-primary" onclick="App.wizard.next3()">下一步</button>
             </div>
           </div>
 
@@ -481,6 +481,6 @@
 </div>
 
 <script src="icons.js?v=1"></script>
-<script src="app.js?v=118"></script>
+<script src="app.js?v=119"></script>
 </body>
 </html>
