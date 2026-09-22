@@ -743,6 +743,7 @@ function claimLane(r){
       ${r.timeout ? '<span class="pb-lane-sla warn">' + IP.svg('clock') + '已超时</span>' : ''}
       <span class="pb-lane-amount">${r.amount != null ? money(r.amount) : '—'}</span>
       <span class="pb-lane-id">${esc(r.claimNo || '')}</span>
+      <span class="pb-lane-time">${IP.svg('clock')}${esc((r.createdAt || '').slice(0, 16))}</span>
     </div>
     <div class="pb-track">${parts.join('')}</div>
   </div>`;
@@ -771,6 +772,7 @@ function todoLane(r){
       ${r.timeout ? '<span class="pb-lane-sla warn">' + IP.svg('clock') + '已超时</span>' : ''}
       <span class="pb-lane-amount">${r.amount != null ? money(r.amount) : '—'}</span>
       <span class="pb-lane-id">${esc(r.claimNo || '')}</span>
+      <span class="pb-lane-time">${IP.svg('clock')}${esc((r.createdAt || '').slice(0, 16))}</span>
     </div>
     <div class="pb-track">${parts.join('')}</div>
   </div>`;
