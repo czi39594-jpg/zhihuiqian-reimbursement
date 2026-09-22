@@ -130,7 +130,6 @@ const App = {
   user: null,            // LoginUser { id, username, realName, deptName, roles[] }
   mockMode: false,       // 后端不可用时的演示模式（本地示例数据）
   page: 'dashboard',
-  mineView: 'list',
   mineTab: 'all',
   approvalTab: 'todo',
   mineRows: [],          // 我的单据 brief 列表
@@ -2680,17 +2679,6 @@ function init(){
   if (tn) tn.onclick = () => App.tour.next();
   if (tp) tp.onclick = () => App.tour.prev();
   if (ts) ts.onclick = () => App.tour.finish();
-
-  // 视图切换（我的单据：列表/卡片/表格）
-  const vs = $('#viewSwitch');
-  if (vs) vs.querySelectorAll('.vs-btn').forEach(btn => {
-    btn.onclick = () => {
-      vs.querySelectorAll('.vs-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      App.mineView = btn.dataset.view;
-      App.renderMine();
-    };
-  });
 
   // FAQ 回车
   const fi = $('#faqSearchInput');
