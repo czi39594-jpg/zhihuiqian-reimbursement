@@ -70,8 +70,8 @@ const STATUS = {
 };
 
 /* 单据类型：全部开放
-   chain.student = 学生提交时的审批链路（需要挂靠老师的类型先走 TEACHER_SPONSOR）
-   chain.teacher = 老师/项目负责人提交时的审批链路（跳过挂靠环节） */
+   chain.student = 学生提交时的审批链路（需指导老师确认的类型先走 TEACHER_SPONSOR）
+   chain.teacher = 老师/项目负责人提交时的审批链路（跳过指导老师环节） */
 const TYPES = {
   TRAVEL_APPLY: { label: '出差申请', icon: IP.svg('airplane'), color: 'blue', disabled: false,
     desc: '先申请后报销：填写项目、事由、出差人与行程，审批通过后才能报销', freq: '一期可用',
@@ -80,13 +80,13 @@ const TYPES = {
     desc: '关联已通过的出差申请，填写费用明细与发票，领导审批 → 财务复核', freq: '一期可用',
     chain: { student: '部门领导 → 财务复核', teacher: '部门领导 → 财务复核' } },
   FUND:   { label: '科研 / 项目基金', icon: IP.svg('experiment'), color: 'purple', disabled: false,
-    desc: '科研经费、项目基金相关支出报销，支持多项目关联（学生需挂靠项目负责人）', freq: '一期可用',
-    chain: { student: '挂靠老师 → 学院审批 → 财务复核', teacher: '学院审批 → 财务复核' } },
+    desc: '科研经费、项目基金相关支出报销，支持多项目关联（学生需经项目指导老师确认）', freq: '一期可用',
+    chain: { student: '指导老师 → 学院审批 → 财务复核', teacher: '学院审批 → 财务复核' } },
   PURCHASE: { label: '大批物资采购', icon: IP.svg('box'), color: 'orange', disabled: false,
-    desc: '设备、耗材等大额物资集中采购报销，附采购清单（学生需挂靠老师）', freq: '一期可用',
-    chain: { student: '挂靠老师 → 部门领导 → 资产管理员 → 财务复核', teacher: '部门领导 → 资产管理员 → 财务复核' } },
+    desc: '设备、耗材等大额物资集中采购报销，附采购清单（学生需经指导老师确认）', freq: '一期可用',
+    chain: { student: '指导老师 → 部门领导 → 资产管理员 → 财务复核', teacher: '部门领导 → 资产管理员 → 财务复核' } },
   ACTIVITY: { label: '学生活动 / 竞赛经费', icon: IP.svg('trophy'), color: 'cyan', disabled: false,
-    desc: '学科竞赛、社团活动、学生工作经费（学生需挂靠指导老师）', freq: '一期可用',
+    desc: '学科竞赛、社团活动、学生工作经费（学生需经指导老师确认）', freq: '一期可用',
     chain: { student: '指导老师 → 学工处 → 财务复核', teacher: '学工处 → 财务复核' } }
 };
 
@@ -99,7 +99,7 @@ const ROLE_LABEL = {
 };
 
 /* 演示账号（后端种子数据，密码均为 Campus@2026，验证码需手填）
-   identity: student=学生(需挂靠老师), teacher=教师, leader=部门/学院领导, finance=财务, admin=管理员 */
+   identity: student=学生(需指导老师确认), teacher=教师, leader=部门/学院领导, finance=财务, admin=管理员 */
 const DEMO_ACCOUNTS = [
   { u: 'zhang', name: '张同学', desc: '学生（申请人）', identity: 'student' },
   { u: 'wang',  name: '王老师', desc: '教师 / 项目负责人', identity: 'teacher' },
@@ -112,7 +112,7 @@ const DEMO_PASSWORD = 'Campus@2026';
 
 /* 流程节点 -> 展示名（后端 wf_node 已有 node_name，此处仅兜底） */
 const NODE_LABEL = {
-  TEACHER_SPONSOR: '挂靠老师', LEADER: '部门领导', COLLEGE: '学院审批', FINANCE: '财务复核',
+  TEACHER_SPONSOR: '指导老师', LEADER: '部门领导', COLLEGE: '学院审批', FINANCE: '财务复核',
   ASSET: '资产管理员', STUDENT_AFFAIR: '学工处'
 };
 /* 节点 -> 默认处理人 */
@@ -423,12 +423,12 @@ App.resetMockData = function(){
   toast('测试数据已重置为 14 条种子单据');
 };
 /* 根据报销类型 + 申请人身份返回下一审批节点的分配人
-   identity: student=学生(走挂靠老师), teacher=教师(跳过挂靠), 其他也跳过挂靠 */
+   identity: student=学生(先走指导老师), teacher=教师(跳过该环节), 其他也跳过 */
 function nextAssignee(claimType, applicantIdentity){
   const idt = applicantIdentity || (App.user && App.user.identity) || 'teacher';
   const needSponsor = (claimType === 'FUND' || claimType === 'PURCHASE' || claimType === 'ACTIVITY') && idt === 'student';
   if (needSponsor){
-    // 学生提交基金/采购/活动经费：第一站走挂靠老师（演示模式下统一走王老师）
+    // 学生提交基金/采购/活动经费：第一站走指导老师（演示模式下统一走王老师）
     return { name: '王老师', username: 'wang', node: 'TEACHER_SPONSOR' };
   }
   if (claimType === 'FUND')        return { name: '周院长', username: 'zhou', node: 'COLLEGE' };
@@ -1177,8 +1177,9 @@ function mockChainPreview(claimType, identity){
   const needSponsor = (claimType === 'FUND' || claimType === 'PURCHASE' || claimType === 'ACTIVITY') && idt === 'student';
   const nodes = [];
   if (needSponsor){
-    // 学生提交基金/采购/活动经费：先挂靠老师
-    nodes.push({ nodeCode: 'TEACHER_SPONSOR', nodeName: '挂靠老师（项目/指导老师）', realName: NODE_ASSIGNEE.TEACHER_SPONSOR.name });
+    // 学生提交基金/采购/活动经费：先经指导老师确认
+    const sponsorLabel = claimType === 'FUND' ? '指导老师（项目负责人）' : '指导老师';
+    nodes.push({ nodeCode: 'TEACHER_SPONSOR', nodeName: sponsorLabel, realName: NODE_ASSIGNEE.TEACHER_SPONSOR.name });
   }
   if (claimType === 'TRAVEL_APPLY'){
     nodes.push({ nodeCode: 'LEADER', nodeName: NODE_LABEL.LEADER, realName: NODE_ASSIGNEE.LEADER.name });
@@ -1736,8 +1737,7 @@ App.buildMockDetail = function(r){
   const isApply = r.claimType === 'TRAVEL_APPLY';
   const isClaim = !isApply;
   const applicant = r.applicantName || (App.user ? App.user.realName : '');
-  // 审批链路
-  /* 审批链路：根据类型 + 申请人身份动态生成，学生的 FUND/PURCHASE/ACTIVITY 需要先挂靠老师 */
+  /* 审批链路：根据类型 + 申请人身份动态生成，学生的 FUND/PURCHASE/ACTIVITY 需先经指导老师确认 */
   const applicantIdentity = (MOCK_USERS[r.applicantUsername] && MOCK_USERS[r.applicantUsername].identity) || 'teacher';
   const needSponsor = (r.claimType === 'FUND' || r.claimType === 'PURCHASE' || r.claimType === 'ACTIVITY') && applicantIdentity === 'student';
   let chain;
@@ -1758,18 +1758,18 @@ App.buildMockDetail = function(r){
   const timeline = [];
   timeline.push({ nodeName: '提交申请', assigneeName: applicant, actedAt: r.createdAt, state: 'DONE' });
   chain.forEach((node, i) => {
-    let state = 'TODO', actedAt = null, assignee = NODE_LABEL[node] + ' / ';
+    // 默认显示该节点的实际处理人姓名（如 王老师 / 李主任 / 陈会计）
+    let state = 'TODO', actedAt = null, assignee = (NODE_ASSIGNEE[node] && NODE_ASSIGNEE[node].name) || NODE_LABEL[node];
     if (r.status === 'APPROVED'){ state = 'DONE'; actedAt = r.createdAt; }
     else if (r.status === 'DRAFT'){ state = 'TODO'; }
     else if (i < idx){ state = 'DONE'; actedAt = r.createdAt; }
     else if (i === idx){
       state = r.status === 'RETURNED' || r.status === 'REJECTED' ? 'RETURN' : 'ACTIVE';
-      assignee = (r.currentAssigneeName || NODE_LABEL[node]);
+      assignee = (r.currentAssigneeName || (NODE_ASSIGNEE[node] && NODE_ASSIGNEE[node].name) || NODE_LABEL[node]);
       if (state === 'RETURN') actedAt = r.createdAt;
     }
-    const extraComment = (node === 'TEACHER_SPONSOR' && r.sponsor) ? ('挂靠人：' + r.sponsor) : '';
     timeline.push({ nodeName: NODE_LABEL[node], assigneeName: assignee, actedAt, state,
-      comment: state === 'RETURN' ? '材料不齐全，请按要求补充后重新提交' : extraComment });
+      comment: state === 'RETURN' ? '材料不齐全，请按要求补充后重新提交' : '' });
   });
 
   const expenses = isClaim ? [
