@@ -583,11 +583,12 @@ App.refreshAll = async function(){
 };
 
 /* ---------------- 路由 ---------------- */
-App.go = function(page){
+App.go = function(page, skipDispatch){
   App.page = page;
   $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
   $$('.page').forEach(p => p.classList.toggle('active', p.dataset.page === page));
   window.scrollTo({ top: 0 });
+  if (skipDispatch) return;
   if (page === 'dashboard') App.renderDashboard();
   if (page === 'mine') App.renderMine();
   if (page === 'approval') App.renderApproval();
@@ -853,7 +854,7 @@ W.loadMeta = async function(){
 
 App.startCreate = async function(type, editId){
   if (TYPES[type] && TYPES[type].disabled){ toast(TYPES[type].label + ' 暂未开放', 'err'); return; }
-  App.go('create');
+  App.go('create', true);
   W.reset();
   W.type = type;
   W.claimId = editId || null;
@@ -863,16 +864,18 @@ App.startCreate = async function(type, editId){
 };
 
 function renderPickGrid(){
+  const myIdentity = (App.user && App.user.identity) || 'teacher';
   $('#pickGrid').innerHTML = Object.entries(TYPES).map(([k, t]) => {
     const [bg, fg] = COLORS[t.color];
     const dis = t.disabled ? ' style="opacity:.55;cursor:not-allowed"' : '';
+    const chainText = t.chain ? (t.chain[myIdentity] || t.chain.teacher) : '敬请期待';
     const click = t.disabled
       ? ' onclick="toast(\'' + t.label + ' 暂未开放\')"'
       : ' onclick="W.pick(\'' + k + '\')"';
     return `<div class="pick-card ${W.type === k ? 'sel' : ''}"${dis}${click}>
       <div class="tc-ico" style="background:${bg};color:${fg}">${t.icon}</div>
       <div><h4>${t.label}</h4><p>${t.desc}</p>
-        <div class="pc-chain">链路：${t.chain}</div>
+        <div class="pc-chain">链路：${chainText}</div>
       </div>
       <div class="pick-check"></div>
     </div>`;
