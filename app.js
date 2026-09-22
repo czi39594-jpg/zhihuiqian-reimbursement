@@ -1723,8 +1723,8 @@ App.buildMockDetail = function(r){
       { personType: '学生', guestName: '刘同学', isApplicant: false }
     ] : [],
     legs: isApply ? [
-      { fromPlace: '本市', toPlace: '杭州', transportCode: '高铁二等座', departDate: '2026-09-25' },
-      { fromPlace: '杭州', toPlace: '本市', transportCode: '高铁二等座', departDate: '2026-09-27' }
+      { fromPlace: '湖州站', toPlace: '杭州东站', transportCode: '高铁二等座 G7351', departDate: '2026-09-25 07:42' },
+      { fromPlace: '杭州东站', toPlace: '湖州站', transportCode: '高铁二等座 G7362', departDate: '2026-09-27 17:18' }
     ] : [],
     expenses, invoices, timeline,
     lastReturn: r.status === 'RETURNED' ? { comment: '住宿费发票缺少开票日期，请补充后重新提交' } : undefined
