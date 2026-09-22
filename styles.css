@@ -240,6 +240,8 @@ svg{width:18px;height:18px;flex:none}
 .pb-lane b{font-size:13.5px}
 .pb-lane-amount{margin-left:auto;font-weight:800;font-size:14.5px;font-variant-numeric:tabular-nums;color:var(--ink)}
 .pb-lane-id{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pb-lane-time{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:4px}
+.pb-lane-time .ip,.pb-lane-time svg{width:12px;height:12px}
 .pb-lane-sla{font-size:11px;padding:2px 8px;border-radius:5px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
 .pb-lane-sla .ip{width:13px;height:13px}
 .pb-lane-sla.warn{background:var(--orange-l);color:var(--orange)}
