@@ -262,6 +262,8 @@ svg{width:18px;height:18px;flex:none}
 .pb-node.done .pb-name{color:var(--green);font-weight:600}
 .pb-node.current .pb-name{color:var(--primary);font-weight:700}
 .pb-node.reject .pb-name{color:var(--red);font-weight:600}
+.pb-node .pb-who{font-size:10.5px;color:var(--ink-3);margin-top:2px;text-align:center;line-height:1.2;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb-node.done .pb-who{color:var(--green);opacity:.85}
 .pb-node .pb-handler{position:absolute;top:100%;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;font-size:10.5px;padding:3px 9px;border-radius:5px;white-space:nowrap;font-weight:600;opacity:0;pointer-events:none;transition:.2s;margin-top:8px}
 .pb-node.current .pb-handler{opacity:1}
 .pb-node.current .pb-handler::after{content:"";position:absolute;top:-4px;left:50%;transform:translateX(-50%) rotate(45deg);width:7px;height:7px;background:var(--primary)}
@@ -281,6 +283,7 @@ svg{width:18px;height:18px;flex:none}
   .pb-head-actions{width:100%}
   .pb-head-actions button{flex:1;justify-content:center}
   .pb-node .pb-name{font-size:10.5px;max-width:56px}
+  .pb-node .pb-who{font-size:9.5px;max-width:56px}
   .pb-handler{display:none}
 }
 
