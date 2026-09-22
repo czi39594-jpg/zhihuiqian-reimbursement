@@ -339,10 +339,39 @@ App.afterEnter = function(){
   setTimeout(() => App.tour.maybeStart(), 500);
 };
 
+/* 跳转我的单据（可携带默认状态 Tab，衔接来源页上下文） */
+App.goMine = function(tab){
+  if (tab) App.mineTab = tab;
+  App.go('mine');
+};
+
 App.logout = async function(){
   try { await post('/api/auth/logout'); } catch(e){}
   App.user = null;
   App.toLogin();
+};
+
+/* 演示模式一键切换账号（多角色联调用） */
+App.switchUser = function(u){
+  const acc = DEMO_ACCOUNTS.find(a => a.u === u);
+  if (!acc) return;
+  $('#roleSwitch').classList.remove('open');
+  if (App.mockMode && MOCK_USERS[u]){
+    if (App.user && App.user.username === u){ toast('当前已登录为 ' + acc.name); return; }
+    App.user = MOCK_USERS[u];
+    App.mineTab = 'all'; App.approvalTab = 'todo'; App.pbFilter = 'current';
+    App.mineKw = null;
+    App.closeDrawer(); App.notice.close();
+    App.applyUser();
+    App.loadMockData();
+    App.afterEnter();
+    toast('已切换账号：' + acc.name + '（' + acc.desc + '）');
+  } else {
+    // 后端模式：退出登录并预填目标账号，输入验证码即可完成切换
+    App.logout();
+    fillDemo(u);
+    toast('已退出登录并预填 ' + acc.name + ' 的账号，输入验证码完成切换');
+  }
 };
 
 /* 演示账号快捷填充 */
@@ -397,6 +426,8 @@ App.applyUser = function(){
    演示模式：本地示例数据（后端不可用时，页面仍有完整内容可看）
    ================================================================ */
 function mockRow(o){
+  // 出差申请本身无费用字段（费用在报销环节产生），金额一律显示为「—」
+  if (o && o.claimType === 'TRAVEL_APPLY') o = Object.assign({}, o, { amount: null });
   return Object.assign({
     id: 0, todoId: null, claimNo: '', claimType: 'TRAVEL_APPLY',
     typeLabel: '出差申请', status: 'APPROVING', currentNode: 'LEADER',
@@ -813,7 +844,8 @@ const W = {
 W.reset = function(){
   W.type = null; W.step = 1; W.claimId = null; W.version = null;
   W.persons = []; W.legs = []; W.expenses = []; W.invoices = [];
-  W.preview = [];
+  W.preview = []; W._c = null;
+  W._editBank = ''; W._editMasked = ''; W._editSourceApplyId = null;
 };
 
 /* 加载元数据：项目 / 字典 / 已通过出差申请 / 功能开关 */
@@ -830,7 +862,7 @@ W.loadMeta = async function(){
       EXPENSE_TYPE: [d('EXPENSE_TYPE','TRANSPORT','交通费'), d('EXPENSE_TYPE','LODGING','住宿费'), d('EXPENSE_TYPE','SUBSIDY','差旅补助'), d('EXPENSE_TYPE','CONFERENCE','会议费'), d('EXPENSE_TYPE','OTHER','其他')]
     };
     W.meta.applies = [
-      { id: 301, claimNo: 'SQ-2026-0910', reason: '南京产学研合作调研出差申请', status: 'APPROVED' }
+      { id: 301, claimNo: 'SQ-2026-0910', reason: '南京产学研合作调研出差申请', status: 'APPROVED', startDate: '2026-09-14', endDate: '2026-09-16' }
     ];
     W.meta.ocrEnabled = false;
     return;
@@ -889,7 +921,31 @@ W.pick = function(type){
   W.goto(2);
 };
 
+/* 离开当前步骤前，把界面已填写内容缓存进状态（返回时回填，防丢失） */
+W.snapshotStep = function(){
+  if (W.step === 2){
+    const g = id => document.getElementById(id);
+    W._c = W._c || {};
+    if (g('fReason')) W._c.reason = g('fReason').value;
+    if (g('fProject')) W._c.project = g('fProject').value;
+    const ds = g('fgDateStart') && g('fgDateStart').querySelector('input');
+    const de = g('fgDateEnd') && g('fgDateEnd').querySelector('input');
+    if (ds) W._c.dateStart = ds.value;
+    if (de) W._c.dateEnd = de.value;
+    if (g('fSourceApply')) W._c.sourceApply = g('fSourceApply').value;
+    if (g('fPayeeBank')) W._c.bank = g('fPayeeBank').value;
+    if (g('fPayeeAccount')) W._c.account = g('fPayeeAccount').value;
+    if (g('fRemark2')) W._c.remark2 = g('fRemark2').value;
+    if (g('personBody')) W.persons = W.readPersons();
+    if (g('legBody')) W.legs = W.readLegs();
+  }
+  if (W.step === 3 && document.getElementById('expenseBody')){
+    W.expenses = W.readExpenses();
+  }
+};
+
 W.goto = function(step){
+  W.snapshotStep();          // 先缓存当前步骤已填内容
   W.step = step;
   $$('.wstep').forEach(el => el.classList.toggle('active', +el.dataset.step === step));
   $$('.stepper .step').forEach(el => {
@@ -944,8 +1000,8 @@ W.fillStep2 = function(){
       <button class="add-row-btn" onclick="W.addLeg()">＋ 添加行程</button>
       <div class="field-box" style="margin-top:20px;max-width:640px"><label>备注（可选）</label>
         <textarea id="fRemark2" rows="2" placeholder="其他需要说明的事项"></textarea></div>`;
-    W.addPerson(true);
-    W.addLeg(true);
+    W.renderPersons();
+    W.renderLegs();
   } else {
     const masked = W._editMasked || '';
     ex.innerHTML = `
@@ -956,26 +1012,66 @@ W.fillStep2 = function(){
         ${W.meta.applies.length ? '' : '<p style="color:var(--orange);font-size:12px;margin-top:6px">暂无已通过的出差申请，请先在「出差申请」中提交并等待学院审批通过</p>'}
       </div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr">
-        <div class="field-box"><label>收款银行</label><input id="fPayeeBank" placeholder="如：招商银行" value="${esc(W._editBank || '')}"></div>
-        <div class="field-box"><label>收款账号</label><input id="fPayeeAccount" placeholder="本人银行卡号" value="${esc(masked)}"></div>
+        <div class="field-box"><label>收款银行 <em>*</em></label><input id="fPayeeBank" list="bankList" placeholder="下拉选择或输入银行名" value="${esc(W._c && W._c.bank || W._editBank || '')}">
+          <datalist id="bankList">
+            <option value="中国人民银行"></option><option value="中国工商银行"></option><option value="中国农业银行"></option><option value="中国银行"></option><option value="中国建设银行"></option>
+            <option value="交通银行"></option><option value="中国邮政储蓄银行"></option><option value="招商银行"></option><option value="中信银行"></option><option value="中国光大银行"></option>
+            <option value="华夏银行"></option><option value="中国民生银行"></option><option value="广发银行"></option><option value="平安银行"></option><option value="兴业银行"></option>
+            <option value="浦发银行"></option><option value="浙商银行"></option><option value="渤海银行"></option><option value="恒丰银行"></option><option value="江苏银行"></option>
+            <option value="杭州银行"></option><option value="宁波银行"></option><option value="南京银行"></option><option value="上海银行"></option><option value="北京银行"></option>
+            <option value="湖州银行"></option><option value="嘉兴银行"></option><option value="绍兴银行"></option><option value="金华银行"></option><option value="台州银行"></option>
+            <option value="浙江农商联合银行"></option><option value="网商银行"></option><option value="微众银行"></option>
+          </datalist>
+        </div>
+        <div class="field-box"><label>收款账号（本人银行卡号，19 位） <em>*</em></label><input id="fPayeeAccount" inputmode="numeric" maxlength="19" placeholder="请输入 19 位银行卡号" value="${esc(masked)}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,19)"></div>
       </div>
       <p style="color:var(--ink-3);font-size:12px;margin-top:8px">报销金额将在下一步由费用明细自动汇总，由系统计算，无需手填。</p>`;
   }
   if (W.claimId) W.loadDraft();
+  else W.restoreStep2();
 };
 
-W.addPerson = function(first){
+/* 返回上一步时回填步骤2已填写内容（数据快照在 snapshotStep 中缓存） */
+W.restoreStep2 = function(){
+  const c = W._c;
+  if (!c) return;
+  const g = id => document.getElementById(id);
+  if (c.reason != null && g('fReason')) g('fReason').value = c.reason;
+  if (c.project != null && g('fProject')) g('fProject').value = c.project;
+  const ds = g('fgDateStart') && g('fgDateStart').querySelector('input');
+  const de = g('fgDateEnd') && g('fgDateEnd').querySelector('input');
+  if (c.dateStart != null && ds) ds.value = c.dateStart;
+  if (c.dateEnd != null && de) de.value = c.dateEnd;
+  if (c.sourceApply != null && g('fSourceApply')) g('fSourceApply').value = c.sourceApply;
+  if (c.bank != null && g('fPayeeBank')) g('fPayeeBank').value = c.bank;
+  if (c.account != null && g('fPayeeAccount')) g('fPayeeAccount').value = c.account;
+  if (c.remark2 != null && g('fRemark2')) g('fRemark2').value = c.remark2;
+};
+
+W.addPerson = function(first, data){
   const tb = $('#personBody');
   if (!tb) return;
   const tr = document.createElement('tr');
   tr.className = 'p-row';
+  const isMe = data ? data.isApplicant == 1 : false;
   tr.innerHTML = `
-    <td><select class="pType">${dictOptions('PERSON_TYPE', '请选择', first ? 'STAFF' : '')}</select></td>
-    <td><input class="pName" placeholder="姓名"></td>
-    <td><input type="checkbox" class="pMe" onchange="W.syncMe(this)"></td>
+    <td><select class="pType">${dictOptions('PERSON_TYPE', '请选择', data ? data.personType : (first ? 'STAFF' : ''))}</select></td>
+    <td><input class="pName" placeholder="姓名" value="${esc(data && data.guestName ? data.guestName : '')}"></td>
+    <td><input type="checkbox" class="pMe" ${isMe ? 'checked' : ''} onchange="W.syncMe(this)"></td>
     <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.persons=W.readPersons()">${IP.svg('del')}</button></td>`;
   tb.appendChild(tr);
+  if (isMe){
+    const nm = tr.querySelector('.pName');
+    nm.value = App.user ? App.user.realName : '';
+    nm.disabled = true;
+  }
   W.persons = W.readPersons();
+};
+/* 按状态渲染出差人行（返回上一步时回填） */
+W.renderPersons = function(){
+  const list = (W.persons && W.persons.length) ? W.persons : [null];
+  $('#personBody').innerHTML = '';
+  list.forEach(p => W.addPerson(false, p || undefined));
 };
 W.syncMe = function(cb){
   if (cb.checked && App.user){
@@ -997,19 +1093,25 @@ W.readPersons = function(){
   })).filter(p => p.personType);
 };
 
-W.addLeg = function(first){
+W.addLeg = function(first, data){
   const tb = $('#legBody');
   if (!tb) return;
   const tr = document.createElement('tr');
   tr.className = 'l-row';
   tr.innerHTML = `
-    <td><input class="lFrom" placeholder="如：湖州"></td>
-    <td><input class="lTo" placeholder="如：杭州"></td>
-    <td><select class="lTrans">${dictOptions('TRANSPORT', '请选择', first ? 'HIGH_RAIL' : '')}</select></td>
-    <td><input type="date" class="lDate"></td>
+    <td><input class="lFrom" placeholder="如：湖州" value="${esc(data && data.fromPlace || '')}"></td>
+    <td><input class="lTo" placeholder="如：杭州" value="${esc(data && data.toPlace || '')}"></td>
+    <td><select class="lTrans">${dictOptions('TRANSPORT', '请选择', data ? data.transportCode : (first ? 'HIGH_RAIL' : ''))}</select></td>
+    <td><input type="date" class="lDate" value="${esc(data && data.departDate || '')}"></td>
     <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.legs=W.readLegs()">${IP.svg('del')}</button></td>`;
   tb.appendChild(tr);
   W.legs = W.readLegs();
+};
+/* 按状态渲染行程行（返回上一步时回填） */
+W.renderLegs = function(){
+  const list = (W.legs && W.legs.length) ? W.legs : [null];
+  $('#legBody').innerHTML = '';
+  list.forEach(l => W.addLeg(false, l || undefined));
 };
 W.readLegs = function(){
   return [...document.querySelectorAll('#legBody .l-row')].map(tr => ({
@@ -1039,25 +1141,36 @@ W.fillStep3 = function(){
     <button class="add-row-btn" onclick="W.addExpense()">＋ 添加费用明细</button>
     <div class="fc-title" style="margin-top:24px">发票 / 票据 <em class="tag tag-orange">先上传文件，再填写票号</em></div>
     <div id="invZone"></div>`;
-  W.addExpense(true);
+  W.renderExpenses();
   W.renderInvZone();
   W.syncClaimAmount();
 };
 
-W.addExpense = function(first){
+W.addExpense = function(first, data){
   const tb = $('#expenseBody');
   if (!tb) return;
   const tr = document.createElement('tr');
   tr.className = 'e-row';
   tr.innerHTML = `
-    <td><select class="eType">${dictOptions('EXPENSE_TYPE', '请选择', first ? 'TRANSPORT' : '')}</select></td>
-    <td><input type="date" class="eDate"></td>
-    <td><input type="number" class="eAmt" min="0.01" step="0.01" placeholder="0.00" oninput="W.syncClaimAmount()"></td>
-    <td><input class="eRemark" placeholder="说明（可选）"></td>
+    <td><select class="eType">${dictOptions('EXPENSE_TYPE', '请选择', data ? data.expenseTypeCode : (first ? 'TRANSPORT' : ''))}</select></td>
+    <td><input type="date" class="eDate" max="${todayStr()}" value="${esc(data && data.occurredOn || '')}"></td>
+    <td><input type="number" class="eAmt" min="0.01" step="0.01" placeholder="0.00" value="${data && data.amount != null ? data.amount : ''}" oninput="W.syncClaimAmount()"></td>
+    <td><input class="eRemark" placeholder="说明（可选）" value="${esc(data && data.remark || '')}"></td>
     <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.expenses=W.readExpenses();W.syncClaimAmount()">${IP.svg('del')}</button></td>`;
   tb.appendChild(tr);
   W.expenses = W.readExpenses();
 };
+/* 按状态渲染费用明细行（返回上一步时回填） */
+W.renderExpenses = function(){
+  const list = (W.expenses && W.expenses.length) ? W.expenses : [null];
+  $('#expenseBody').innerHTML = '';
+  list.forEach(e => W.addExpense(false, e || undefined));
+};
+/* 本地日期（YYYY-MM-DD），用于禁止选择未来日期 */
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 W.readExpenses = function(){
   const list = [...document.querySelectorAll('#expenseBody .e-row')].map(tr => ({
     expenseTypeCode: tr.querySelector('.eType').value || null,
@@ -1129,7 +1242,7 @@ W.renderInvoices = function(){
         <input placeholder="发票号码" value="${esc(inv.invoiceNo)}" oninput="W.invoices[${i}].invoiceNo=this.value">
         <input placeholder="发票代码" value="${esc(inv.invoiceCode)}" oninput="W.invoices[${i}].invoiceCode=this.value">
         <input type="number" placeholder="金额（元）" value="${inv.amount != null ? inv.amount : ''}" oninput="W.invoices[${i}].amount=parseFloat(this.value)||null;W.syncClaimAmount()">
-        <input type="date" value="${esc(inv.issueDate || '')}" oninput="W.invoices[${i}].issueDate=this.value">
+        <input type="date" max="${todayStr()}" value="${esc(inv.issueDate || '')}" oninput="W.invoices[${i}].issueDate=this.value">
       </div>
       <div class="ie-actions">
         ${W.meta.ocrEnabled ? `<button class="btn-ghost btn-sm" onclick="W.ocrInvoice(${i})">识别</button>` : ''}
@@ -1295,6 +1408,86 @@ W.buildPayload = function(){
   };
 };
 
+/* ---- 分步校验：每一步「下一步」都做完整必填校验，未填满不允许进入下一步 ---- */
+W.validateStep2 = function(){
+  const reason = $('#fReason').value.trim();
+  if (!reason) throw new Error('请填写报销 / 出差事由');
+  if (W.type === 'TRAVEL_APPLY'){
+    if (!$('#fProject').value) throw new Error('请选择关联项目 / 预算编号');
+    const s = $('#fgDateStart input').value, e2 = $('#fgDateEnd input').value;
+    if (!s || !e2) throw new Error('请填写出差起止日期');
+    if (e2 < s) throw new Error('出差结束日期不能早于开始日期');
+    if (!W.readPersons().length) throw new Error('请至少添加一名出差人（需选择人员类型）');
+    if (!W.readLegs().length) throw new Error('请至少添加一段行程');
+  } else {
+    if (!$('#fSourceApply').value) throw new Error('请选择关联的已通过出差申请（必选）');
+    const bank = $('#fPayeeBank').value.trim();
+    if (!bank) throw new Error('请下拉选择或填写收款银行');
+    const acc = $('#fPayeeAccount').value.trim();
+    if (!acc) throw new Error('请填写本人银行卡号');
+    if (!/^\d{19}$/.test(acc)) throw new Error('银行卡号必须为 19 位数字（当前 ' + acc.replace(/\D/g, '').length + ' 位），请核对后重新填写');
+  }
+};
+W.validateStep3 = function(){
+  if (W.type === 'TRAVEL_APPLY') return;
+  W.readExpenses();
+  if (!W.expenses.length) throw new Error('请至少填写一条费用明细');
+  const bad = W.expenses.find(e => !e.amount || e.amount <= 0);
+  if (bad) throw new Error('费用明细中存在未填写或小于等于 0 的金额，请补全');
+  const noDate = W.expenses.find(e => !e.occurredOn);
+  if (noDate) throw new Error('费用明细中存在未选择的发生日期，请补全');
+  if (!W.invoices.length) throw new Error('请至少上传一张发票');
+  const total = W.expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  if (!(total > 0)) throw new Error('报销金额必须大于 0（金额由费用明细自动汇总，请检查明细）');
+};
+/* 发生日期校验：不可晚于今天；与关联出差申请的出差时间比对，不一致时弹窗说明 */
+W.checkExpenseDates = function(onPass){
+  const today = todayStr();
+  const future = W.expenses.find(e => e.occurredOn && e.occurredOn > today);
+  if (future){
+    toast('发生日期 ' + future.occurredOn + ' 晚于今天，报销不可提前申请，请修改', 'err');
+    return;
+  }
+  const saId = $('#fSourceApply') ? $('#fSourceApply').value : null;
+  const sa = W.meta.applies.find(a => a.id == saId);
+  if (sa && sa.startDate && sa.endDate){
+    const out = W.expenses.filter(e => e.occurredOn && (e.occurredOn < sa.startDate || e.occurredOn > sa.endDate));
+    if (out.length){
+      const ok = confirm('时间不一致提醒：\n\n费用发生日期（' + out[0].occurredOn + (out.length > 1 ? ' 等 ' + out.length + ' 笔' : '') + '）不在关联出差申请 ' + sa.claimNo + ' 的出差时间（' + sa.startDate + ' 至 ' + sa.endDate + '）范围内。\n\n若实际行程确有变动，可点击「确定」继续提交；点击「取消」返回修改。');
+      if (!ok) return;
+    }
+  }
+  onPass();
+};
+W.next2 = function(){
+  try { W.validateStep2(); } catch(e){ toast(e.message, 'err'); return; }
+  W.goto(3);
+};
+W.next3 = function(){
+  try { W.validateStep3(); } catch(e){ toast(e.message, 'err'); return; }
+  W.checkExpenseDates(() => W.goto(4));
+};
+
+/* 按报销事由自动匹配并推荐关联的已通过出差申请 */
+W.autoMatchApply = function(){
+  if (W.type === 'TRAVEL_APPLY' || W.step !== 2) return;
+  const sel = $('#fSourceApply');
+  if (!sel || sel.value) return;   // 已选择则不覆盖
+  const clean = s => (s || '').replace(/出差申请|报销|费用|申请/g, '').trim();
+  const kw = clean($('#fReason').value);
+  if (kw.length < 4) return;
+  const hit = W.meta.applies.find(a => {
+    const ar = clean(a.reason);
+    if (!ar) return false;
+    return ar.includes(kw.slice(0, 6)) || kw.includes(ar.slice(0, 6));
+  });
+  if (hit){
+    sel.value = hit.id;
+    toast('已按事由自动关联出差申请 ' + hit.claimNo + '，请核对');
+  }
+};
+
+/* 提交前整体校验（复用分步规则） */
 W.validate = function(){
   const p = W.buildPayload();
   if (W.type === 'TRAVEL_APPLY'){
@@ -1306,6 +1499,7 @@ W.validate = function(){
   } else {
     if (!p.sourceApplyId) throw new Error('请选择关联的出差申请');
     if (!p.payeeBank || !p.payeeAccount) throw new Error('请填写收款银行与账号');
+    if (!/^\d{19}$/.test(p.payeeAccount)) throw new Error('银行卡号必须为 19 位数字');
     if (!p.expenses.length) throw new Error('请至少填写一条费用明细');
     if (p.expenses.some(e => !e.amount || e.amount <= 0)) throw new Error('费用明细金额必须大于 0');
     if (!p.invoices.length) throw new Error('请至少上传一张发票');
@@ -1577,6 +1771,7 @@ App.wizard = W;
    ================================================================ */
 App.renderMine = function(){
   const rows = App.mineRows;
+  const kw = (App.mineKw || '').trim().toLowerCase();
   const tabDefs = [
     ['all', '全部', rows.length],
     ['APPROVING', '审批中', rows.filter(r => r.status === 'APPROVING').length],
@@ -1588,13 +1783,38 @@ App.renderMine = function(){
   $('#mineTabs').innerHTML = tabDefs.map(([k, l, n]) =>
     `<button class="ftab ${App.mineTab === k ? 'active' : ''}" onclick="App.mineTab='${k}';App.renderMine()">${l}<em>${n}</em></button>`).join('');
 
-  const list = App.mineTab === 'all' ? rows : rows.filter(r => r.status === App.mineTab);
+  let list = App.mineTab === 'all' ? rows : rows.filter(r => r.status === App.mineTab);
+  if (kw){
+    list = list.filter(r => [r.claimNo, r.reason, r.typeLabel, r.applicantName]
+      .some(v => String(v || '').toLowerCase().includes(kw)));
+  }
   const box = $('#mineList');
+  const kwBar = kw
+    ? `<div style="display:flex;align-items:center;gap:10px;margin:0 0 12px;color:var(--ink-2);font-size:13px">
+        <span>${IP.svg('search')} 关键词「${esc(App.mineKw.trim())}」：${list.length} 条结果</span>
+        <a style="color:var(--green);cursor:pointer;font-weight:600" onclick="App.clearMineKw()">清除搜索</a>
+      </div>`
+    : '';
   if (!list.length){
-    box.innerHTML = `<div class="empty"><div class="empty-ico">${IP.svg('folder')}</div>暂无相关单据${App.mineTab === 'all' ? '，点击「发起报销」创建第一张' : ''}<button class="btn-ghost" style="margin-top:12px" onclick="App.seedDemo()">＋ 添加调试数据</button></div>`;
+    box.innerHTML = kwBar + `<div class="empty"><div class="empty-ico">${IP.svg('folder')}</div>${kw ? '未找到与「' + esc(App.mineKw.trim()) + '」相关的单据' : '暂无相关单据' + (App.mineTab === 'all' ? '，点击「发起报销」创建第一张' : '')}${kw ? '' : '<button class="btn-ghost" style="margin-top:12px" onclick="App.seedDemo()">＋ 添加调试数据</button>'}</div>`;
     return;
   }
-  box.innerHTML = list.map(r => mineRow(r)).join('');
+  box.innerHTML = kwBar + list.map(r => mineRow(r)).join('');
+};
+
+/* 顶栏搜索：搜索单号 / 事由 / 项目编号 → 跳转我的单据并过滤 */
+App.topSearch = function(v){
+  const kw = (v || '').trim();
+  if (!kw){ toast('请输入单号 / 事由 / 项目编号关键词', 'err'); return; }
+  App.mineKw = kw;
+  App.mineTab = 'all';
+  App.go('mine');
+};
+App.clearMineKw = function(){
+  App.mineKw = null;
+  const inp = document.querySelector('#topSearch');
+  if (inp) inp.value = '';
+  App.renderMine();
 };
 
 function mineRow(r){
@@ -2335,20 +2555,25 @@ App.notice = {
     this.render();
   },
   render(){
-    let items = this.list;
-    const todoN = items.filter(n => (n.eventKey || '').startsWith('todo-')).length;
+    const all = this.list;
+    const isTodo = n => (n.eventKey || '').startsWith('todo-');
+    // 分类筛选：全部=所有；待办=待处理事项；系统=系统通知（带原始下标，保证点击跳转正确）
+    const shown = all.map((n, i) => ({ n, i }))
+      .filter(x => this.tab === 'all' || (this.tab === 'todo' ? isTodo(x.n) : !isTodo(x.n)));
+    const todoN = all.filter(isTodo).length;
     $('#ndTodoCount').textContent = todoN;
-    const unread = items.filter(n => !n.readFlag).length;
+    const unread = all.filter(n => !n.readFlag).length;
     $('#ndUnreadCount').textContent = unread;
-    if (!items.length){
-      $('#ndList').innerHTML = `<div class="nd-empty"><div class="nd-empty-ico">${IP.svg('mail')}</div><div>暂无通知</div></div>`;
+    if (!shown.length){
+      const tip = this.tab === 'todo' ? '暂无待办事项' : this.tab === 'system' ? '暂无系统通知' : '暂无通知';
+      $('#ndList').innerHTML = `<div class="nd-empty"><div class="nd-empty-ico">${IP.svg('mail')}</div><div>${tip}</div></div>`;
       return;
     }
-    $('#ndList').innerHTML = items.map((n, i) => `
+    $('#ndList').innerHTML = shown.map(({ n, i }) => `
       <div class="nd-item ${n.readFlag ? '' : 'unread'}" onclick="App.notice.openItem(${i})">
-        <div class="nd-ico" style="background:${(n.eventKey || '').startsWith('todo-') ? '#F6EEDD' : '#E7EFEB'}">${(n.eventKey || '').startsWith('todo-') ? IP.svg('clipboard') : IP.svg('message')}</div>
+        <div class="nd-ico" style="background:${isTodo(n) ? '#F6EEDD' : '#E7EFEB'}">${isTodo(n) ? IP.svg('clipboard') : IP.svg('message')}</div>
         <div class="nd-body">
-          <div class="nd-title">${esc(n.title)} ${(n.eventKey || '').startsWith('todo-') ? '<span class="nd-tag t-todo">待办</span>' : '<span class="nd-tag t-info">通知</span>'}</div>
+          <div class="nd-title">${esc(n.title)} ${isTodo(n) ? '<span class="nd-tag t-todo">待办</span>' : '<span class="nd-tag t-info">通知</span>'}</div>
           <div class="nd-desc">${esc(n.content || '')}</div>
           <div class="nd-time">${fmtTime(n.createdAt)}</div>
         </div>
@@ -2473,7 +2698,7 @@ App.faq = {
   showResults(metaHtml, results, highlightCat){
     $('#faqDefault').style.display = 'none';
     $('#faqSearching').style.display = 'block';
-    $('#faqResultMeta').innerHTML = metaHtml;
+    $('#faqResultMeta').innerHTML = '<a class="faq-back" style="display:inline-flex;align-items:center;gap:4px;color:var(--green);cursor:pointer;font-weight:600;margin-right:14px" onclick="App.faq.backToCats()">← 返回分类</a>' + metaHtml;
     $('#faqAiThinking').style.display = 'none';
     $('#faqRecommend').style.display = 'none';
     $('#faqResultList').innerHTML = results.map((r, idx) => {
@@ -2502,6 +2727,10 @@ App.faq = {
     $('#faqDefault').style.display = 'block';
     $('#faqSearching').style.display = 'none';
     $('#faqSearchInput').value = '';
+  },
+  /* 从分类/搜索结果返回分类列表 */
+  backToCats(){
+    this.showDefault();
   }
 };
 
@@ -2660,7 +2889,7 @@ function init(){
   // 角色菜单（切换账号 / 退出）
   $('#roleSwitch').addEventListener('click', e => {
     const demo = e.target.closest('[data-demo]');
-    if (demo){ fillDemo(demo.dataset.demo); $('#roleSwitch').classList.remove('open'); return; }
+    if (demo){ App.switchUser(demo.dataset.demo); return; }
     const logout = e.target.closest('[data-logout]');
     if (logout){ $('#roleSwitch').classList.remove('open'); App.logout(); return; }
     $('#roleSwitch').classList.toggle('open');
@@ -2676,6 +2905,12 @@ function init(){
   // 向导
   const toStep2 = $('#toStep2');
   if (toStep2) toStep2.onclick = () => W.goto(2);
+  // 事由输入 → 自动匹配关联出差申请
+  const fReason = $('#fReason');
+  if (fReason) fReason.addEventListener('input', () => W.autoMatchApply());
+  // 顶栏搜索（回车触发）
+  const topSearch = $('#topSearch');
+  if (topSearch) topSearch.addEventListener('keydown', e => { if (e.key === 'Enter') App.topSearch(e.target.value); });
 
   // 新手分步指引
   const tn = $('#tourNextBtn'), tp = $('#tourPrev'), ts = $('#tourSkip');
