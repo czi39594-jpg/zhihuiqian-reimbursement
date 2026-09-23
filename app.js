@@ -1191,9 +1191,11 @@ W.fillStep3 = function(){
     </tr></thead><tbody id="expenseBody"></tbody></table>
     <button class="add-row-btn" onclick="W.addExpense()">＋ 添加费用明细</button>
     <div class="amount-summary">
-      <span class="as-label">报销金额合计</span>
-      <span class="as-value" id="fAmount">¥0.00</span>
-      <span class="as-hint">（由上方费用明细自动汇总，无需手填）</span>
+      <div class="as-top">
+        <span class="as-label">报销金额合计</span>
+        <span class="as-value" id="fAmount">¥0.00</span>
+      </div>
+      <div class="as-hint">由上方费用明细自动汇总，无需手填</div>
     </div>
     <div class="fc-title" style="margin-top:24px">发票 / 票据 <em class="tag tag-orange">先上传文件，再填写票号</em></div>
     <div id="invZone"></div>`;
