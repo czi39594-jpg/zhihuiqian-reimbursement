@@ -1498,12 +1498,11 @@ W.fieldErr = function(selector, msg){
   el.classList.add('err');
   const box = el.closest('.fg, .field-box, td');
   if (!box) return;
-  let tip = box.querySelector(':scope > .field-err, .field-err');
+  let tip = box.querySelector('.field-err');
   if (!tip){
     tip = document.createElement('div');
     tip.className = 'field-err';
-    // 日期字段框内已存在 field-hint，错误提示放在控件后面、field-hint 之前更合理
-    const hint = box.querySelector(':scope > .field-hint');
+    const hint = box.querySelector('.field-hint');
     if (hint) box.insertBefore(tip, hint); else box.appendChild(tip);
   }
   tip.textContent = msg;
@@ -3103,9 +3102,10 @@ function init(){
     const row = t.closest('.p-row, .l-row, .e-row');
     if (row){ const tip = row.querySelector('.row-err-msg'); if (tip) tip.remove(); }
   };
-  // 字段 / 表格行输入时清除对应的错误提示（红框 + 红字）。委托到 document 以兼容步骤切换重建 DOM
-  document.addEventListener('input', clearSelfErr);
-  document.addEventListener('change', clearSelfErr);
+  // 字段 / 表格行输入时清除对应的错误提示（红框 + 红字）。
+  // 捕获阶段绑定，保证人工 dispatch 的非冒泡事件也能触发
+  document.addEventListener('input', clearSelfErr, true);
+  document.addEventListener('change', clearSelfErr, true);
   // 顶栏搜索（回车触发）
   const topSearch = $('#topSearch');
   if (topSearch) topSearch.addEventListener('keydown', e => { if (e.key === 'Enter') App.topSearch(e.target.value); });
