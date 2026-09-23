@@ -1096,7 +1096,7 @@ W.addPerson = function(first, data){
     <td><select class="pType">${dictOptions('PERSON_TYPE', '请选择', data ? data.personType : (first ? 'STAFF' : ''))}</select></td>
     <td><input class="pName" placeholder="姓名" value="${esc(data && data.guestName ? data.guestName : '')}"></td>
     <td><input type="checkbox" class="pMe" ${isMe ? 'checked' : ''} onchange="W.syncMe(this)"></td>
-    <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.persons=W.readPersons()">${IP.svg('del')}</button></td>`;
+    <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.persons=W.readPersons();W.refreshDelBtns()">${IP.svg('del')}</button></td>`;
   tb.appendChild(tr);
   if (isMe){
     const nm = tr.querySelector('.pName');
@@ -1104,6 +1104,20 @@ W.addPerson = function(first, data){
     nm.disabled = true;
   }
   W.persons = W.readPersons();
+  W.refreshDelBtns();
+};
+/* 出差人 / 行程只剩一行时隐藏该行的删除按钮，避免删到零条 */
+W.refreshDelBtns = function(){
+  ['#personBody', '#legBody'].forEach(sel => {
+    const tb = document.querySelector(sel);
+    if (!tb) return;
+    const rows = tb.querySelectorAll('.p-row, .l-row');
+    const hide = rows.length <= 1;
+    rows.forEach(tr => {
+      const btn = tr.querySelector('.del-row');
+      if (btn) btn.classList.toggle('hide', hide);
+    });
+  });
 };
 /* 按状态渲染出差人行（返回上一步时回填） */
 W.renderPersons = function(){
@@ -1141,9 +1155,10 @@ W.addLeg = function(first, data){
     <td><input class="lTo" placeholder="如：杭州" value="${esc(data && data.toPlace || '')}"></td>
     <td><select class="lTrans">${dictOptions('TRANSPORT', '请选择', data ? data.transportCode : (first ? 'HIGH_RAIL' : ''))}</select></td>
     <td><input type="date" class="lDate" value="${esc(data && data.departDate || '')}"></td>
-    <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.legs=W.readLegs()">${IP.svg('del')}</button></td>`;
+    <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.legs=W.readLegs();W.refreshDelBtns()">${IP.svg('del')}</button></td>`;
   tb.appendChild(tr);
   W.legs = W.readLegs();
+  W.refreshDelBtns();
 };
 /* 按状态渲染行程行（返回上一步时回填） */
 W.renderLegs = function(){
@@ -1476,37 +1491,110 @@ W.buildPayload = function(){
 };
 
 /* ---- 分步校验：每一步「下一步」都做完整必填校验，未填满不允许进入下一步 ---- */
-W.validateStep2 = function(){
-  const reason = $('#fReason').value.trim();
-  if (!reason) throw new Error('请填写报销 / 出差事由');
-  if (W.type === 'TRAVEL_APPLY'){
-    if (!$('#fProject').value) throw new Error('请选择关联项目 / 预算编号');
-    const s = $('#fgDateStart input').value, e2 = $('#fgDateEnd input').value;
-    if (!s || !e2) throw new Error('请填写出差起止日期');
-    if (e2 < s) throw new Error('出差结束日期不能早于开始日期');
-    if (!W.readPersons().length) throw new Error('请至少添加一名出差人（需选择人员类型）');
-    if (!W.readLegs().length) throw new Error('请至少添加一段行程');
-  } else {
-    if (!$('#fSourceApply').value) throw new Error('请选择关联的已通过出差申请（必选）');
-    const bank = $('#fPayeeBank').value.trim();
-    if (!bank) throw new Error('请下拉选择或填写收款银行');
-    const acc = $('#fPayeeAccount').value.trim();
-    if (!acc) throw new Error('请填写本人银行卡号');
-    if (!/^\d{19}$/.test(acc)) throw new Error('银行卡号必须为 19 位数字（当前 ' + acc.replace(/\D/g, '').length + ' 位），请核对后重新填写');
-    if (!luhnValid(acc)) throw new Error('银行卡号校验未通过（Luhn 校验码不符），请核对卡号是否输入正确');
+/* 表单字段错误提示：在控件旁显示红字 + 控件红框 */
+W.fieldErr = function(selector, msg){
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.classList.add('err');
+  const box = el.closest('.fg, .field-box, td');
+  if (!box) return;
+  let tip = box.querySelector(':scope > .field-err, .field-err');
+  if (!tip){
+    tip = document.createElement('div');
+    tip.className = 'field-err';
+    // 日期字段框内已存在 field-hint，错误提示放在控件后面、field-hint 之前更合理
+    const hint = box.querySelector(':scope > .field-hint');
+    if (hint) box.insertBefore(tip, hint); else box.appendChild(tip);
   }
+  tip.textContent = msg;
+  tip.style.display = '';
+};
+W.clearFieldErrs = function(){
+  $$('.field-err, .row-err-msg').forEach(el => el.remove());
+  $$('.err').forEach(el => el.classList.remove('err'));
+};
+/* 动态表格行校验：未填必填单元格标红 + 行内红字提示 */
+W.rowErr = function(rowSel, cellSel, msg){
+  const row = document.querySelector(rowSel);
+  if (!row) return;
+  const cell = row.querySelector(cellSel);
+  if (cell) cell.classList.add('err');
+  let tip = row.querySelector('.row-err-msg');
+  if (!tip){
+    tip = document.createElement('span');
+    tip.className = 'row-err-msg';
+    const td = row.querySelector('td:last-child');
+    if (td) td.appendChild(tip);
+  }
+  tip.textContent = msg;
+};
+
+W.validateStep2 = function(){
+  W.clearFieldErrs();
+  const errors = [];
+  const reason = $('#fReason').value.trim();
+  if (!reason){ W.fieldErr('#fReason', '请填写报销 / 出差事由'); errors.push('事由'); }
+  if (W.type === 'TRAVEL_APPLY'){
+    if (!$('#fProject').value){ W.fieldErr('#fProject', '请选择关联项目 / 预算编号'); errors.push('项目'); }
+    const s = $('#fgDateStart input').value, e2 = $('#fgDateEnd input').value;
+    if (!s){ W.fieldErr('#fgDateStart input', '请选择开始日期'); errors.push('开始日期'); }
+    if (!e2){ W.fieldErr('#fgDateEnd input', '请选择结束日期'); errors.push('结束日期'); }
+    if (s && e2 && e2 < s){ W.fieldErr('#fgDateEnd input', '结束日期不能早于开始日期'); errors.push('日期顺序'); }
+    // 出差人：逐行检查类型/姓名
+    const pRows = [...document.querySelectorAll('#personBody .p-row')];
+    pRows.forEach((tr, i) => {
+      const pt = tr.querySelector('.pType');
+      const pn = tr.querySelector('.pName');
+      if (!pt.value){ W.rowErr(`#personBody .p-row:nth-child(${i + 1})`, '.pType', '请选择人员类型'); errors.push('出差人类型'); }
+      else if (!tr.querySelector('.pMe').checked && !pn.value.trim()){
+        W.rowErr(`#personBody .p-row:nth-child(${i + 1})`, '.pName', '请填写姓名'); errors.push('出差人姓名');
+      }
+    });
+    // 行程：逐行检查出发/到达/交通/日期
+    const lRows = [...document.querySelectorAll('#legBody .l-row')];
+    lRows.forEach((tr, i) => {
+      const from = tr.querySelector('.lFrom'), to = tr.querySelector('.lTo');
+      const trans = tr.querySelector('.lTrans'), dt = tr.querySelector('.lDate');
+      if (!from.value.trim()){ W.rowErr(`#legBody .l-row:nth-child(${i + 1})`, '.lFrom', '请填出发地'); errors.push('行程'); }
+      if (!to.value.trim()){ W.rowErr(`#legBody .l-row:nth-child(${i + 1})`, '.lTo', '请填到达地'); errors.push('行程'); }
+      if (!trans.value){ W.rowErr(`#legBody .l-row:nth-child(${i + 1})`, '.lTrans', '请选交通工具'); errors.push('行程'); }
+      if (!dt.value){ W.rowErr(`#legBody .l-row:nth-child(${i + 1})`, '.lDate', '请选出发日期'); errors.push('行程'); }
+    });
+  } else {
+    if (!$('#fSourceApply').value){ W.fieldErr('#fSourceApply', '请选择关联的已通过出差申请'); errors.push('关联申请'); }
+    const bank = $('#fPayeeBank').value.trim();
+    if (!bank){ W.fieldErr('#fPayeeBank', '请下拉选择或填写收款银行'); errors.push('收款银行'); }
+    const acc = $('#fPayeeAccount').value.trim();
+    if (!acc){ W.fieldErr('#fPayeeAccount', '请填写本人银行卡号'); errors.push('卡号'); }
+    else if (!/^\d{19}$/.test(acc)){ W.fieldErr('#fPayeeAccount', '卡号必须为 19 位数字（当前 ' + acc.replace(/\D/g, '').length + ' 位）'); errors.push('卡号位数'); }
+    else if (!luhnValid(acc)){ W.fieldErr('#fPayeeAccount', '卡号校验未通过（Luhn 校验码不符），请核对'); errors.push('卡号校验'); }
+  }
+  return errors;
 };
 W.validateStep3 = function(){
-  if (W.type === 'TRAVEL_APPLY') return;
+  W.clearFieldErrs();
+  if (W.type === 'TRAVEL_APPLY') return [];
+  const errors = [];
   W.readExpenses();
-  if (!W.expenses.length) throw new Error('请至少填写一条费用明细');
-  const bad = W.expenses.find(e => !e.amount || e.amount <= 0);
-  if (bad) throw new Error('费用明细中存在未填写或小于等于 0 的金额，请补全');
-  const noDate = W.expenses.find(e => !e.occurredOn);
-  if (noDate) throw new Error('费用明细中存在未选择的发生日期，请补全');
-  if (!W.invoices.length) throw new Error('请至少上传一张发票');
+  if (!W.expenses.length){
+    W.rowErr('#expenseBody .e-row:last-child', '.eAmt', '请至少填写一条费用明细');
+    errors.push('费用明细');
+  }
+  const eRows = [...document.querySelectorAll('#expenseBody .e-row')];
+  eRows.forEach((tr, i) => {
+    const type = tr.querySelector('.eType'), date = tr.querySelector('.eDate'), amt = tr.querySelector('.eAmt');
+    if (!type.value){ W.rowErr(`#expenseBody .e-row:nth-child(${i + 1})`, '.eType', '请选费用类型'); errors.push('费用类型'); }
+    if (!date.value){ W.rowErr(`#expenseBody .e-row:nth-child(${i + 1})`, '.eDate', '请选发生日期'); errors.push('发生日期'); }
+    if (!amt.value || parseFloat(amt.value) <= 0){ W.rowErr(`#expenseBody .e-row:nth-child(${i + 1})`, '.eAmt', '金额需大于 0'); errors.push('费用金额'); }
+  });
+  if (!W.invoices.length){
+    const zone = $('#invZone');
+    if (zone){ let tip = zone.querySelector('.field-err'); if (!tip){ tip = document.createElement('div'); tip.className = 'field-err'; zone.appendChild(tip); } tip.textContent = '请至少上传一张发票'; tip.style.display = ''; }
+    errors.push('发票');
+  }
   const total = W.expenses.reduce((s, e) => s + (e.amount || 0), 0);
-  if (!(total > 0)) throw new Error('报销金额必须大于 0（金额由费用明细自动汇总，请检查明细）');
+  if (!(total > 0)){ errors.push('报销金额需大于 0'); }
+  return errors;
 };
 /* 事由归一化：去通用词与非中英数字符，便于比对报销事由与出差申请事由是否相关 */
 function normReasonText(s){
@@ -1551,11 +1639,13 @@ W.checkExpenseDates = function(onPass){
   onPass();
 };
 W.next2 = function(){
-  try { W.validateStep2(); } catch(e){ toast(e.message, 'err'); return; }
+  const errors = W.validateStep2();
+  if (errors.length){ toast('请完善以下必填项：' + errors.join('、'), 'err'); return; }   // 停留在当前步骤
   W.goto(3);
 };
 W.next3 = function(){
-  try { W.validateStep3(); } catch(e){ toast(e.message, 'err'); return; }
+  const errors = W.validateStep3();
+  if (errors.length){ toast('请完善以下必填项：' + errors.join('、'), 'err'); return; }
   W.checkExpenseDates(() => W.goto(4));
 };
 
@@ -1578,24 +1668,10 @@ W.autoMatchApply = function(){
   }
 };
 
-/* 提交前整体校验（复用分步规则） */
+/* 提交前整体校验：复用分步校验，同时显示字段级红框提示 */
 W.validate = function(){
-  const p = W.buildPayload();
-  if (W.type === 'TRAVEL_APPLY'){
-    if (!p.projectId) throw new Error('请选择项目');
-    if (!p.reason) throw new Error('请填写出差事由');
-    if (!p.startDate || !p.endDate) throw new Error('请填写出差起止日期');
-    if (!p.persons.length) throw new Error('请至少添加一名出差人');
-    if (!p.legs.length) throw new Error('请至少添加一段行程');
-  } else {
-    if (!p.sourceApplyId) throw new Error('请选择关联的出差申请');
-    if (!p.payeeBank || !p.payeeAccount) throw new Error('请填写收款银行与账号');
-    if (!/^\d{19}$/.test(p.payeeAccount)) throw new Error('银行卡号必须为 19 位数字');
-    if (!luhnValid(p.payeeAccount)) throw new Error('银行卡号校验未通过（Luhn 校验码不符），请核对卡号');
-    if (!p.expenses.length) throw new Error('请至少填写一条费用明细');
-    if (p.expenses.some(e => !e.amount || e.amount <= 0)) throw new Error('费用明细金额必须大于 0');
-    if (!p.invoices.length) throw new Error('请至少上传一张发票');
-  }
+  const errs = W.validateStep2().concat(W.validateStep3());
+  if (errs.length) throw new Error('请完善以下必填项：' + [...new Set(errs)].join('、'));
 };
 
 /* 保存草稿 */
@@ -3017,6 +3093,19 @@ function init(){
   // 事由输入 → 自动匹配关联出差申请
   const fReason = $('#fReason');
   if (fReason) fReason.addEventListener('input', () => W.autoMatchApply());
+  // 字段 / 表格行输入时清除对应的错误提示（红框 + 红字）
+  const clearSelfErr = e => {
+    const t = e.target;
+    if (!t || !t.classList) return;
+    t.classList.remove('err');
+    const box = t.closest('.fg, .field-box');
+    if (box){ const tip = box.querySelector('.field-err'); if (tip) tip.remove(); }
+    const row = t.closest('.p-row, .l-row, .e-row');
+    if (row){ const tip = row.querySelector('.row-err-msg'); if (tip) tip.remove(); }
+  };
+  // 字段 / 表格行输入时清除对应的错误提示（红框 + 红字）。委托到 document 以兼容步骤切换重建 DOM
+  document.addEventListener('input', clearSelfErr);
+  document.addEventListener('change', clearSelfErr);
   // 顶栏搜索（回车触发）
   const topSearch = $('#topSearch');
   if (topSearch) topSearch.addEventListener('keydown', e => { if (e.key === 'Enter') App.topSearch(e.target.value); });
