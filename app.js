@@ -1496,7 +1496,8 @@ W.fieldErr = function(selector, msg){
   const el = document.querySelector(selector);
   if (!el) return;
   el.classList.add('err');
-  const box = el.closest('.fg, .field-box, td');
+  // 优先找 td（表格内控件），否则取父容器（form-grid 里的 .fg / .field-box / 普通 div）
+  const box = el.closest('td') || el.parentElement;
   if (!box) return;
   let tip = box.querySelector('.field-err');
   if (!tip){
@@ -3097,7 +3098,7 @@ function init(){
     const t = e.target;
     if (!t || !t.classList) return;
     t.classList.remove('err');
-    const box = t.closest('.fg, .field-box');
+    const box = t.closest('td') || t.parentElement;
     if (box){ const tip = box.querySelector('.field-err'); if (tip) tip.remove(); }
     const row = t.closest('.p-row, .l-row, .e-row');
     if (row){ const tip = row.querySelector('.row-err-msg'); if (tip) tip.remove(); }
