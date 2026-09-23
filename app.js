@@ -1012,8 +1012,6 @@ W.fillStep2 = function(){
   $('#fgDateStart').style.display = isApply ? '' : 'none';
   $('#fgDateEnd').style.display = isApply ? '' : 'none';
   $('#fgPlace').style.display = 'none';
-  const famtBox = $('#fAmountBox');
-  if (famtBox) famtBox.style.display = isClaim ? '' : 'none';
   $('#travelApply').style.display = 'none';
 
   // 项目下拉
@@ -1192,6 +1190,11 @@ W.fillStep3 = function(){
       <th style="width:24%">费用类型</th><th style="width:18%">发生日期</th><th style="width:18%">金额（元）</th><th style="width:30%">说明</th><th style="width:10%"></th>
     </tr></thead><tbody id="expenseBody"></tbody></table>
     <button class="add-row-btn" onclick="W.addExpense()">＋ 添加费用明细</button>
+    <div class="amount-summary">
+      <span class="as-label">报销金额合计</span>
+      <span class="as-value" id="fAmount">¥0.00</span>
+      <span class="as-hint">（由上方费用明细自动汇总，无需手填）</span>
+    </div>
     <div class="fc-title" style="margin-top:24px">发票 / 票据 <em class="tag tag-orange">先上传文件，再填写票号</em></div>
     <div id="invZone"></div>`;
   W.renderExpenses();
@@ -1267,7 +1270,7 @@ W.syncClaimAmount = function(){
   W.readExpenses();
   const total = W.expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const f = $('#fAmount');
-  if (f) f.value = total ? total.toFixed(2) : '';
+  if (f) f.textContent = money(total);
 };
 
 /* ---- 发票上传与填写 ---- */
@@ -1388,7 +1391,7 @@ W.fillStep4 = async function(){
     const sa = W.meta.applies.find(a => a.id == ($('#fSourceApply').value || W._editSourceApplyId));
     rows.push(['关联申请', sa ? sa.claimNo : '—']);
     W.syncClaimAmount();
-    const amt = parseFloat($('#fAmount').value) || 0;
+    const amt = W.expenses.reduce((s, e) => s + (e.amount || 0), 0);
     rows.push(['报销金额', amt ? money(amt) : '—']);
     rows.push(['费用明细', W.expenses.length + ' 条'], ['发票', W.invoices.length + ' 张']);
     rows.push(['收款账户', ($('#fPayeeBank').value || '—') + ' ' + ($('#fPayeeAccount').value || '')]);
