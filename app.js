@@ -1210,7 +1210,7 @@ W.addExpense = function(first, data){
   tr.innerHTML = `
     <td><select class="eType">${dictOptions('EXPENSE_TYPE', '请选择', data ? data.expenseTypeCode : (first ? 'TRANSPORT' : ''))}</select></td>
     <td><input type="date" class="eDate" max="${todayStr()}" value="${esc(data && data.occurredOn || '')}"></td>
-    <td><input type="number" class="eAmt" min="0.01" step="0.01" placeholder="0.00" value="${data && data.amount != null ? data.amount : ''}" oninput="W.syncClaimAmount()"></td>
+    <td><input type="number" class="eAmt" min="0.01" step="0.01" placeholder="金额" value="${data && data.amount != null ? data.amount : ''}" oninput="W.syncClaimAmount()"></td>
     <td><input class="eRemark" placeholder="说明（可选）" value="${esc(data && data.remark || '')}"></td>
     <td><button type="button" class="del-row" title="删除" onclick="this.closest('tr').remove();W.expenses=W.readExpenses();W.syncClaimAmount()">${IP.svg('del')}</button></td>`;
   tb.appendChild(tr);
@@ -1270,7 +1270,14 @@ W.syncClaimAmount = function(){
   W.readExpenses();
   const total = W.expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const f = $('#fAmount');
-  if (f) f.textContent = money(total);
+  if (!f) return;
+  if (total > 0){
+    f.textContent = money(total);
+    f.classList.remove('empty');
+  } else {
+    f.textContent = '—';
+    f.classList.add('empty');
+  }
 };
 
 /* ---- 发票上传与填写 ---- */
