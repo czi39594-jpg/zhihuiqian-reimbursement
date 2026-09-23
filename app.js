@@ -281,6 +281,33 @@ App.toLogin = function(){
   loadCaptcha();
 };
 
+/* 会话持久化：刷新页面后保持登录（演示模式将账号存 localStorage） */
+App.saveSession = function(){
+  try {
+    localStorage.setItem('zhx_session', JSON.stringify({ u: App.user && App.user.username, mode: App.mockMode ? 'mock' : 'server' }));
+  } catch(e){}
+};
+App.clearSession = function(){
+  try { localStorage.removeItem('zhx_session'); } catch(e){}
+};
+App.restoreSession = function(){
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem('zhx_session') || 'null'); } catch(e){ return; }
+  if (!raw) return;
+  // 纯静态托管（GitHub Pages）场景统一为演示模式：直接恢复对应 mock 账号
+  if (MOCK_USERS[raw.u]){
+    App.user = MOCK_USERS[raw.u];
+    App.mockMode = true;
+    $('#login').style.display = 'none';
+    $('#app').style.display = 'flex';
+    App.applyUser();
+    App.loadMockData();
+    App.go('dashboard');
+  } else {
+    App.clearSession();
+  }
+};
+
 /* 演示账号 mock 用户信息（后端不可用时回退登录） */
 const MOCK_USERS = {
   zhang: { id: 1, username: 'zhang', realName: '张同学', deptName: '电子信息学院', roles: ['APPLICANT'], identity: 'student' },
@@ -309,6 +336,7 @@ App.login = async function(){
     await App.refreshAll();
     App.notice.reload();
     App.afterEnter();
+    App.saveSession();
     toast('登录成功：' + App.user.realName);
   } catch(e){
     // 后端不可用时：演示账号 + mock 验证码本地校验登录
@@ -323,6 +351,7 @@ App.login = async function(){
       App.applyUser();
       App.loadMockData();
       App.afterEnter();
+      App.saveSession();
       toast('登录成功（演示模式）：' + App.user.realName);
     } else {
       toast(errMsg(e) || '账号或密码错误', 'err');
@@ -347,6 +376,7 @@ App.goMine = function(tab){
 
 App.logout = async function(){
   try { await post('/api/auth/logout'); } catch(e){}
+  App.clearSession();
   App.user = null;
   App.toLogin();
 };
@@ -365,6 +395,7 @@ App.switchUser = function(u){
     App.applyUser();
     App.loadMockData();
     App.afterEnter();
+    App.saveSession();
     toast('已切换账号：' + acc.name + '（' + acc.desc + '）');
   } else {
     // 后端模式：退出登录并预填目标账号，输入验证码即可完成切换
@@ -846,6 +877,11 @@ W.reset = function(){
   W.persons = []; W.legs = []; W.expenses = []; W.invoices = [];
   W.preview = []; W._c = null;
   W._editBank = ''; W._editMasked = ''; W._editSourceApplyId = null;
+  // 清空静态的出差起止日期框，避免新单带上次残留 / 浏览器自动填充值
+  ['#fgDateStart input', '#fgDateEnd input'].forEach(sel => {
+    const el = document.querySelector(sel);
+    if (el){ el.value = ''; el.removeAttribute('min'); }
+  });
 };
 
 /* 加载元数据：项目 / 字典 / 已通过出差申请 / 功能开关 */
@@ -1002,6 +1038,7 @@ W.fillStep2 = function(){
         <textarea id="fRemark2" rows="2" placeholder="其他需要说明的事项"></textarea></div>`;
     W.renderPersons();
     W.renderLegs();
+    W.setupDateRange();   // 起止日期预填今天 + 联动（草稿载入后会再校正一次）
   } else {
     const masked = W._editMasked || '';
     ex.innerHTML = `
@@ -1042,6 +1079,7 @@ W.restoreStep2 = function(){
   const de = g('fgDateEnd') && g('fgDateEnd').querySelector('input');
   if (c.dateStart != null && ds) ds.value = c.dateStart;
   if (c.dateEnd != null && de) de.value = c.dateEnd;
+  W.syncDateRange();
   if (c.sourceApply != null && g('fSourceApply')) g('fSourceApply').value = c.sourceApply;
   if (c.bank != null && g('fPayeeBank')) g('fPayeeBank').value = c.bank;
   if (c.account != null && g('fPayeeAccount')) g('fPayeeAccount').value = c.account;
@@ -1171,6 +1209,23 @@ function todayStr(){
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
+/* ---- 出差起止日期：预填今天 + 联动（结束日期不得早于开始日期） ---- */
+W.syncDateRange = function(){
+  const ds = document.querySelector('#fgDateStart input');
+  const de = document.querySelector('#fgDateEnd input');
+  if (!ds || !de) return;
+  if (!ds.value) ds.value = todayStr();
+  de.min = ds.value;                       // 结束日历中早于开始日期的日期灰显、不可选
+  if (!de.value || de.value < ds.value) de.value = ds.value;
+};
+W.setupDateRange = function(){
+  const ds = document.querySelector('#fgDateStart input');
+  const de = document.querySelector('#fgDateEnd input');
+  if (!ds || !de) return;
+  // 新建单进入步骤即预填（不用点开日期框，默认就是今天）；草稿 / 返回上一步已有值则保留
+  if (!W.claimId && !(W._c && W._c.dateStart) && !ds.value) ds.value = todayStr();
+  W.syncDateRange();
+};
 /* 银行卡号 Luhn（模 10）校验：银联卡号末位为前 18 位按 Luhn 算法推出的校验位 */
 function luhnValid(num){
   const s = String(num || '').replace(/\s/g, '');
@@ -1628,6 +1683,7 @@ W.loadDraft = async function(){
         const ds = $('#fgDateStart input'), de = $('#fgDateEnd input');
         if (ds) ds.value = d.apply.startDate || '';
         if (de) de.value = d.apply.endDate || '';
+        W.syncDateRange();
         if ($('#fRemark2')) $('#fRemark2').value = d.apply.remark || '';
       }
       W.persons = d.persons.map(p => ({ userId: null, guestName: p.guestName, personType: p.personType, isApplicant: p.isApplicant }));
@@ -1662,6 +1718,7 @@ W.loadDraft = async function(){
         const ds = $('#fgDateStart input'), de = $('#fgDateEnd input');
         if (ds) ds.value = d.apply.startDate || '';
         if (de) de.value = d.apply.endDate || '';
+        W.syncDateRange();
         if ($('#fRemark2')) $('#fRemark2').value = d.apply.remark || '';
       }
       W.persons = (d.persons || []).map(p => ({ userId: p.userId, guestName: p.guestName, personType: p.personType, isApplicant: p.isApplicant }));
@@ -2897,6 +2954,9 @@ function init(){
   App.faq.renderCategories();
   loadCaptcha();
 
+  // 刷新页面后恢复上次登录的演示账号（无需重新登录）
+  App.restoreSession();
+
   // 静态 IconPark 图标占位填充
   $$('.ip-slot').forEach(el => { el.innerHTML = IP.svg(el.dataset.ip); });
 
@@ -2942,6 +3002,18 @@ function init(){
   // 向导
   const toStep2 = $('#toStep2');
   if (toStep2) toStep2.onclick = () => W.goto(2);
+  // 出差起止日期联动：开始日期变化后，结束日期 min 跟随，早于开始则自动修正
+  const dsEl = document.querySelector('#fgDateStart input');
+  const deEl = document.querySelector('#fgDateEnd input');
+  if (dsEl && deEl){
+    dsEl.addEventListener('change', () => W.syncDateRange());
+    deEl.addEventListener('change', () => {
+      if (deEl.value && dsEl.value && deEl.value < dsEl.value){
+        toast('结束日期不能早于开始日期，已自动调整', 'err');
+        deEl.value = dsEl.value;
+      }
+    });
+  }
   // 事由输入 → 自动匹配关联出差申请
   const fReason = $('#fReason');
   if (fReason) fReason.addEventListener('input', () => W.autoMatchApply());
