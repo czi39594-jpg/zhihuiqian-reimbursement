@@ -387,13 +387,10 @@ svg{width:18px;height:18px;flex:none}
 .detail-table input:focus{border-color:var(--primary);outline:none}
 .add-row-btn{margin-top:10px;color:var(--primary);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
 .add-row-btn .ip{width:15px;height:15px}
-/* 报销金额汇总条：紧跟费用明细表格 */
-.amount-summary{margin-top:14px;padding:16px 20px;background:#F7F3EA;border:1px solid #E8E0CE;border-radius:10px;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-.amount-summary .as-top{display:flex;align-items:baseline;gap:12px}
-.amount-summary .as-label{font-size:13px;color:var(--ink-2);font-weight:600}
-.amount-summary .as-value{font-size:26px;font-weight:700;color:var(--primary);font-family:"Georgia",serif;letter-spacing:.5px}
-.amount-summary .as-value.empty{color:var(--ink-3);font-size:16px;font-weight:500}
-.amount-summary .as-hint{font-size:11px;color:var(--ink-3)}
+/* 费用明细表格底部合计行 */
+.expense-total td{padding-top:10px;border-top:1px dashed var(--line-2)}
+.expense-total .et-amount{font-size:18px;font-weight:700;color:var(--primary);font-family:"Georgia",serif}
+.expense-total .et-amount.empty{color:var(--ink-3);font-size:14px;font-weight:500}
 .form-foot{display:flex;justify-content:flex-end;gap:10px;padding:8px 0}
 /* 步骤3 票据表单 */
 .btn-ocr{background:var(--primary-l);border:1px solid #CBDCD4;border-radius:8px;padding:7px 14px;font-size:13px;color:var(--primary);cursor:pointer;font-weight:600;white-space:nowrap;transition:.14s}
