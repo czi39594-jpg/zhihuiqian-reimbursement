@@ -1188,15 +1188,13 @@ W.fillStep3 = function(){
     <div class="fc-title">费用明细 <em class="tag tag-blue">金额自动汇总为报销总额</em></div>
     <table class="detail-table"><thead><tr>
       <th style="width:24%">费用类型</th><th style="width:18%">发生日期</th><th style="width:18%">金额（元）</th><th style="width:30%">说明</th><th style="width:10%"></th>
-    </tr></thead><tbody id="expenseBody"></tbody></table>
+    </tr></thead><tbody id="expenseBody"></tbody>
+    <tfoot><tr class="expense-total">
+      <td colspan="2" style="text-align:right;color:var(--ink-2);font-weight:600;padding-right:12px">报销金额合计</td>
+      <td class="et-amount" id="fAmount">¥0.00</td>
+      <td colspan="2" style="color:var(--ink-3);font-size:11px">自动汇总，无需手填</td>
+    </tr></tfoot></table>
     <button class="add-row-btn" onclick="W.addExpense()">＋ 添加费用明细</button>
-    <div class="amount-summary">
-      <div class="as-top">
-        <span class="as-label">报销金额合计</span>
-        <span class="as-value" id="fAmount">¥0.00</span>
-      </div>
-      <div class="as-hint">由上方费用明细自动汇总，无需手填</div>
-    </div>
     <div class="fc-title" style="margin-top:24px">发票 / 票据 <em class="tag tag-orange">先上传文件，再填写票号</em></div>
     <div id="invZone"></div>`;
   W.renderExpenses();
