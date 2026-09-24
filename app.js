@@ -74,19 +74,19 @@ const STATUS = {
    chain.teacher = 老师/项目负责人提交时的审批链路（跳过指导老师环节） */
 const TYPES = {
   TRAVEL_APPLY: { label: '出差申请', icon: IP.svg('airplane'), color: 'blue', disabled: false,
-    desc: '先申请后报销：填写项目、事由、出差人与行程，审批通过后才能报销', freq: '一期可用',
+    desc: '先申请后报销：填写项目、事由、出差人与行程，审批通过后才能报销', freq: '',
     chain: { student: '部门领导 → 学院审批', teacher: '部门领导 → 学院审批' } },
   TRAVEL_CLAIM: { label: '差旅报销', icon: IP.svg('receipt'), color: 'green', disabled: false,
-    desc: '关联已通过的出差申请，填写费用明细与发票，领导审批 → 财务复核', freq: '一期可用',
+    desc: '关联已通过的出差申请，填写费用明细与发票，领导审批 → 财务复核', freq: '',
     chain: { student: '部门领导 → 财务复核', teacher: '部门领导 → 财务复核' } },
   FUND:   { label: '科研 / 项目基金', icon: IP.svg('experiment'), color: 'purple', disabled: false,
-    desc: '科研经费、项目基金相关支出报销，支持多项目关联（学生需经项目指导老师确认）', freq: '一期可用',
+    desc: '科研经费、项目基金相关支出报销，支持多项目关联（学生需经项目指导老师确认）', freq: '',
     chain: { student: '指导老师 → 学院审批 → 财务复核', teacher: '学院审批 → 财务复核' } },
   PURCHASE: { label: '大批物资采购', icon: IP.svg('box'), color: 'orange', disabled: false,
-    desc: '设备、耗材等大额物资集中采购报销，附采购清单（学生需经指导老师确认）', freq: '一期可用',
+    desc: '设备、耗材等大额物资集中采购报销，附采购清单（学生需经指导老师确认）', freq: '',
     chain: { student: '指导老师 → 部门领导 → 资产管理员 → 财务复核', teacher: '部门领导 → 资产管理员 → 财务复核' } },
   ACTIVITY: { label: '学生活动 / 竞赛经费', icon: IP.svg('trophy'), color: 'cyan', disabled: false,
-    desc: '学科竞赛、社团活动、学生工作经费（学生需经指导老师确认）', freq: '一期可用',
+    desc: '学科竞赛、社团活动、学生工作经费（学生需经指导老师确认）', freq: '',
     chain: { student: '指导老师 → 学工处 → 财务复核', teacher: '学工处 → 财务复核' } }
 };
 
@@ -738,7 +738,7 @@ App.renderDashboard = function(){
     return `<div class="type-card"${dis}${click}>
       <div class="tc-top">
         <div class="tc-ico" style="background:${bg};color:${fg}">${t.icon}</div>
-        <span class="tc-freq">${t.freq}</span>
+        ${t.freq ? `<span class="tc-freq">${t.freq}</span>` : ''}
       </div>
       <h4>${t.label}</h4>
       <p>${t.desc}</p>
