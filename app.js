@@ -1047,16 +1047,17 @@ W.fillStep2 = function(){
         ${W.meta.applies.length ? '' : '<p style="color:var(--orange);font-size:12px;margin-top:6px">暂无已通过的出差申请，请先在「出差申请」中提交并等待学院审批通过</p>'}
       </div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr">
-        <div class="field-box"><label>收款银行 <em>*</em></label><input id="fPayeeBank" list="bankList" placeholder="下拉选择或输入银行名" value="${esc(W._c && W._c.bank || W._editBank || '')}">
-          <datalist id="bankList">
-            <option value="中国人民银行"></option><option value="中国工商银行"></option><option value="中国农业银行"></option><option value="中国银行"></option><option value="中国建设银行"></option>
-            <option value="交通银行"></option><option value="中国邮政储蓄银行"></option><option value="招商银行"></option><option value="中信银行"></option><option value="中国光大银行"></option>
-            <option value="华夏银行"></option><option value="中国民生银行"></option><option value="广发银行"></option><option value="平安银行"></option><option value="兴业银行"></option>
-            <option value="浦发银行"></option><option value="浙商银行"></option><option value="渤海银行"></option><option value="恒丰银行"></option><option value="江苏银行"></option>
-            <option value="杭州银行"></option><option value="宁波银行"></option><option value="南京银行"></option><option value="上海银行"></option><option value="北京银行"></option>
-            <option value="湖州银行"></option><option value="嘉兴银行"></option><option value="绍兴银行"></option><option value="金华银行"></option><option value="台州银行"></option>
-            <option value="浙江农商联合银行"></option><option value="网商银行"></option><option value="微众银行"></option>
-          </datalist>
+        <div class="field-box"><label>收款银行 <em>*</em></label>
+          <select id="fPayeeBank" onchange="W._c.bank=this.value">
+            <option value="">请选择收款银行</option>
+            <option>中国人民银行</option><option>中国工商银行</option><option>中国农业银行</option><option>中国银行</option><option>中国建设银行</option>
+            <option>交通银行</option><option>中国邮政储蓄银行</option><option>招商银行</option><option>中信银行</option><option>中国光大银行</option>
+            <option>华夏银行</option><option>中国民生银行</option><option>广发银行</option><option>平安银行</option><option>兴业银行</option>
+            <option>浦发银行</option><option>浙商银行</option><option>渤海银行</option><option>恒丰银行</option><option>江苏银行</option>
+            <option>杭州银行</option><option>宁波银行</option><option>南京银行</option><option>上海银行</option><option>北京银行</option>
+            <option>湖州银行</option><option>嘉兴银行</option><option>绍兴银行</option><option>金华银行</option><option>台州银行</option>
+            <option>浙江农商联合银行</option><option>网商银行</option><option>微众银行</option>
+          </select>
         </div>
         <div class="field-box"><label>收款账号（本人银行卡号，19 位） <em>*</em></label><input id="fPayeeAccount" inputmode="numeric" maxlength="19" placeholder="请输入 19 位银行卡号" value="${esc(masked)}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,19)"></div>
       </div>
@@ -1573,7 +1574,7 @@ W.validateStep2 = function(){
   } else {
     if (!$('#fSourceApply').value){ W.fieldErr('#fSourceApply', '请选择关联的已通过出差申请'); errors.push('关联申请'); }
     const bank = $('#fPayeeBank').value.trim();
-    if (!bank){ W.fieldErr('#fPayeeBank', '请下拉选择或填写收款银行'); errors.push('收款银行'); }
+    if (!bank){ W.fieldErr('#fPayeeBank', '请选择收款银行'); errors.push('收款银行'); }
     const acc = $('#fPayeeAccount').value.trim();
     if (!acc){ W.fieldErr('#fPayeeAccount', '请填写本人银行卡号'); errors.push('卡号'); }
     else if (!/^\d{19}$/.test(acc)){ W.fieldErr('#fPayeeAccount', '卡号必须为 19 位数字（当前 ' + acc.replace(/\D/g, '').length + ' 位）'); errors.push('卡号位数'); }
