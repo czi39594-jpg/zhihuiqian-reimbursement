@@ -1203,9 +1203,9 @@ W.fillStep3 = function(){
       <th style="width:24%">费用类型</th><th style="width:18%">发生日期</th><th style="width:18%">金额（元）</th><th style="width:30%">说明</th><th style="width:10%"></th>
     </tr></thead><tbody id="expenseBody"></tbody>
     <tfoot><tr class="expense-total">
-      <td colspan="2" style="text-align:right;color:var(--ink-2);font-weight:600;padding-right:12px">报销金额合计</td>
+      <td colspan="3" style="text-align:right;color:var(--ink-2);font-weight:600;padding-right:12px">报销金额合计</td>
       <td class="et-amount" id="fAmount">¥0.00</td>
-      <td colspan="2" style="color:var(--ink-3);font-size:11px">自动汇总，无需手填</td>
+      <td></td>
     </tr></tfoot></table>
     <button class="add-row-btn" onclick="W.addExpense()">＋ 添加费用明细</button>
     <div class="fc-title" style="margin-top:24px">发票 / 票据 <em class="tag tag-orange">先上传文件，再填写票号</em></div>
@@ -1301,7 +1301,6 @@ W.renderInvZone = function(){
     <div class="upload-row">
       <button class="btn-ghost btn-sm" onclick="document.getElementById('invFileInput').click()">📎 上传发票（jpg / png / pdf）</button>
       <input type="file" id="invFileInput" accept=".jpg,.jpeg,.png,.pdf" style="display:none" onchange="W.uploadInvoice(this)">
-      <span style="color:var(--ink-3);font-size:12px">每张发票先上传文件，再填写或识别票号、金额</span>
     </div>
     <div id="invList"></div>`;
   W.renderInvoices();
@@ -1314,7 +1313,7 @@ W.uploadInvoice = async function(input){
       if (!W.claimId) W.claimId = Date.now();
       W.invoices.push({ fileId: Date.now(), invoiceType: 'VAT', invoiceCode: '', invoiceNo: '', issueDate: '', amount: null, buyerName: '' });
       W.renderInvoices();
-      toast('发票已上传（演示模式），请手动填写票号与金额');
+      toast('发票已上传（演示模式）');
       input.value = '';
       return;
     }
