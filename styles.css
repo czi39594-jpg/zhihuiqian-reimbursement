@@ -410,6 +410,8 @@ svg{width:18px;height:18px;flex:none}
 .pager button.on{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600}
 .pager button:disabled{opacity:.4;cursor:not-allowed}
 .pager .pg-info{margin-right:auto}
+/* 通知抽屉：列表上限提示 */
+.nd-more{padding:14px;text-align:center;font-size:12px;color:var(--ink-3);border-top:1px dashed var(--line-2)}
 .form-foot{display:flex;justify-content:flex-end;gap:10px;padding:8px 0}
 /* 步骤3 票据表单 */
 .btn-ocr{background:var(--primary-l);border:1px solid #CBDCD4;border-radius:8px;padding:7px 14px;font-size:13px;color:var(--primary);cursor:pointer;font-weight:600;white-space:nowrap;transition:.14s}
