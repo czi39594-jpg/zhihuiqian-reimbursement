@@ -412,6 +412,9 @@ svg{width:18px;height:18px;flex:none}
 .pager .pg-info{margin-right:auto}
 /* 通知抽屉：列表上限提示 */
 .nd-more{padding:14px;text-align:center;font-size:12px;color:var(--ink-3);border-top:1px dashed var(--line-2)}
+/* 全部单据页：关键词搜索框 */
+.fa-search{width:280px;border:1px solid var(--line-2);border-radius:7px;padding:7px 11px;font-size:13px;background:#fff;color:var(--ink)}
+.fa-search:focus{border-color:var(--primary);outline:none}
 .form-foot{display:flex;justify-content:flex-end;gap:10px;padding:8px 0}
 /* 步骤3 票据表单 */
 .btn-ocr{background:var(--primary-l);border:1px solid #CBDCD4;border-radius:8px;padding:7px 14px;font-size:13px;color:var(--primary);cursor:pointer;font-weight:600;white-space:nowrap;transition:.14s}
