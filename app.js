@@ -655,7 +655,7 @@ App.go = function(page, skipDispatch){
   if (page === 'mine') App.renderMine();
   if (page === 'approval') App.renderApproval();
   if (page === 'finance') App.renderFinance();
-  if (page === 'financeAll') App.renderFinanceAll();
+  if (page === 'financeAll'){ App.faPage = 1; App.renderFinanceAll(); }
   if (page === 'ocr-debug') App.loadOcrDebug();
   if (page === 'create') App.startCreate();
 };
@@ -2587,11 +2587,23 @@ App.closeDrawer = function(){
 /* ================================================================
    财务看板
    ================================================================ */
+App.faPage = 1;
+App.faGo = function(p){ App.faPage = p; App.renderFinanceAll(); };
+function pageList(cur, pages){
+  if (pages <= 7) return Array.from({length: pages}, (_, i) => i + 1);
+  const arr = [...new Set([1, pages, cur - 1, cur, cur + 1])].filter(p => p >= 1 && p <= pages).sort((a, b) => a - b);
+  const out = []; let prev = 0;
+  for (const p of arr){ if (p - prev > 1) out.push('…'); out.push(p); prev = p; }
+  return out;
+}
 App.renderFinanceAll = function(){
-  const rows = App.financeRows;
-  $('#faCount').textContent = rows.length;
+  const rows = (App.financeRows || []).slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const SIZE = 10, total = rows.length, pages = Math.max(1, Math.ceil(total / SIZE));
+  if (App.faPage > pages) App.faPage = pages;
+  const shown = rows.slice((App.faPage - 1) * SIZE, App.faPage * SIZE);
+  $('#faCount').textContent = total;
   $('#faTable').innerHTML = `<thead><tr><th>单号</th><th>事由</th><th>申请人</th><th>金额</th><th>状态</th><th>提交时间</th></tr></thead>
-    <tbody>${rows.map(r => {
+    <tbody>${shown.map(r => {
       const st = STATUS[r.status] || { label: r.status, cls: 'tag-gray' };
       return `<tr onclick="App.openDrawer(${r.id})">
         <td>${r.claimNo}</td><td title="${esc(r.reason || '')}">${esc(r.reason || '')}</td><td>${esc(r.applicantName)}</td>
@@ -2599,8 +2611,12 @@ App.renderFinanceAll = function(){
         <td><span class="tag ${st.cls}">${st.label}</span></td>
         <td>${fmtTime(r.createdAt)}</td></tr>`;
     }).join('')}</tbody>`;
-  $('#faEmpty').style.display = rows.length ? 'none' : '';
-  if (!rows.length) $('#faEmpty').innerHTML = '<div class="empty-ico">' + IP.svg('grid') + '</div>暂无差旅报销单据';
+  $('#faPager').innerHTML = !total ? '' : `<span class="pg-info">共 ${total} 条 · 第 ${App.faPage} / ${pages} 页</span>
+    <button ${App.faPage === 1 ? 'disabled' : ''} onclick="App.faGo(${App.faPage - 1})">上一页</button>
+    ${pageList(App.faPage, pages).map(p => p === '…' ? '<span style="padding:0 2px">…</span>' : `<button class="${p === App.faPage ? 'on' : ''}" onclick="App.faGo(${p})">${p}</button>`).join('')}
+    <button ${App.faPage === pages ? 'disabled' : ''} onclick="App.faGo(${App.faPage + 1})">下一页</button>`;
+  $('#faEmpty').style.display = total ? 'none' : '';
+  if (!total) $('#faEmpty').innerHTML = '<div class="empty-ico">' + IP.svg('grid') + '</div>暂无差旅报销单据';
 };
 App.renderFinance = function(){
   const rows = App.financeRows;
