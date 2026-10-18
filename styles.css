@@ -1,4 +1,4 @@
-﻿/* ================================================================
+/* ================================================================
    智汇签 · 校园报销审批平台 —— 设计系统 v2
    方向：暖纸底 + 学院墨绿 + 赭石点缀（参考 uigradients 低饱和自然色系）
    图标：IconPark（icons.js）  图片：Pexels（assets/）
@@ -391,6 +391,8 @@ svg{width:18px;height:18px;flex:none}
 .expense-total td{padding-top:10px;border-top:1px dashed var(--line-2)}
 .expense-total .et-amount{font-size:18px;font-weight:700;color:var(--primary);font-family:"Georgia",serif}
 .expense-total .et-amount.empty{color:var(--ink-3);font-size:14px;font-weight:500}
+/* 自动绑卡提示条 */
+.payee-reuse{margin:2px 0 14px;padding:8px 12px;border:1px solid #CFE0D7;background:#EFF5F1;border-radius:8px;font-size:12px;color:var(--primary)}
 .form-foot{display:flex;justify-content:flex-end;gap:10px;padding:8px 0}
 /* 步骤3 票据表单 */
 .btn-ocr{background:var(--primary-l);border:1px solid #CBDCD4;border-radius:8px;padding:7px 14px;font-size:13px;color:var(--primary);cursor:pointer;font-weight:600;white-space:nowrap;transition:.14s}
