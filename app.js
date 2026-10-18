@@ -2604,10 +2604,10 @@ App.renderFinance = function(){
       <div class="k-bg">${ico}</div></div>`).join('');
 
   // 统计图：一期占位（统计聚合接口二期上线）
-  $('#chartTrend').innerHTML = chartPlaceholder('月度趋势图', '后端统计接口二期上线后展示');
+  $('#chartTrend').innerHTML = chartPlaceholder('月度趋势统计将于二期上线');
   $('#chartDonut').innerHTML = '';
   $('#donutLegend').innerHTML = '';
-  $('#chartDept').innerHTML = chartPlaceholder('部门 TOP5', '后端统计接口二期上线后展示');
+  $('#chartDept').innerHTML = chartPlaceholder('部门报销统计将于二期上线');
 
   // 归档表：默认只显示最近 5 条，「查看全部」展开 / 收起（后端 financeList 实时数据）
   const shown = App.archiveShowAll ? rows : rows.slice(0, 5);
@@ -2617,7 +2617,7 @@ App.renderFinance = function(){
     <tbody>${shown.map(r => {
       const st = STATUS[r.status] || { label: r.status, cls: 'tag-gray' };
       return `<tr onclick="App.openDrawer(${r.id})">
-        <td>${r.claimNo}</td><td>${esc(r.reason || '')}</td><td>${esc(r.applicantName)}</td>
+        <td>${r.claimNo}</td><td title="${esc(r.reason || '')}">${esc(r.reason || '')}</td><td>${esc(r.applicantName)}</td>
         <td><b>${r.amount != null ? money(r.amount) : '—'}</b></td>
         <td><span class="tag ${st.cls}">${st.label}</span></td>
         <td>${fmtTime(r.createdAt)}</td></tr>`;
@@ -2630,10 +2630,10 @@ App.renderFinance = function(){
   }
 };
 
-function chartPlaceholder(title, desc){
-  return `<div style="height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink-3);background:#F7F5EE;border:1px dashed var(--line-2);border-radius:10px;gap:6px">
-    <div style="font-size:15px;font-weight:600;color:var(--ink-2)">${title}</div>
-    <div style="font-size:12px">${desc}</div>
+function chartPlaceholder(desc){
+  return `<div style="height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink-3);background:#F7F5EE;border:1px dashed var(--line-2);border-radius:10px;gap:8px">
+    <div class="empty-ico">${IP.svg('grid')}</div>
+    <div style="font-size:12.5px">${desc}</div>
   </div>`;
 }
 
