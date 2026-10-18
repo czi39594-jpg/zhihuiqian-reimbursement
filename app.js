@@ -1990,7 +1990,7 @@ App.renderMine = function(){
     ['DRAFT', '草稿', rows.filter(r => r.status === 'DRAFT').length]
   ];
   $('#mineTabs').innerHTML = tabDefs.map(([k, l, n]) =>
-    `<button class="ftab ${App.mineTab === k ? 'active' : ''}" onclick="App.mineTab='${k}';App.renderMine()">${l}<em>${n}</em></button>`).join('');
+    `<button class="ftab ${App.mineTab === k ? 'active' : ''}" onclick="App.mineTab='${k}';App.pg.mine=1;App.renderMine()">${l}<em>${n}</em></button>`).join('');
 
   let list = App.mineTab === 'all' ? rows : rows.filter(r => r.status === App.mineTab);
   if (kw){
@@ -2008,7 +2008,11 @@ App.renderMine = function(){
     box.innerHTML = kwBar + `<div class="empty"><div class="empty-ico">${IP.svg('folder')}</div>${kw ? '未找到与「' + esc(App.mineKw.trim()) + '」相关的单据' : '暂无相关单据' + (App.mineTab === 'all' ? '，点击「发起报销」创建第一张' : '')}${kw ? '' : '<button class="btn-ghost" style="margin-top:12px" onclick="App.seedDemo()">＋ 添加调试数据</button>'}</div>`;
     return;
   }
-  box.innerHTML = kwBar + list.map(r => mineRow(r)).join('');
+  // 分页：每页 10 条，与财务全部单据页一致
+  const SIZE = 10;
+  if ((App.pg.mine || 1) > Math.max(1, Math.ceil(list.length / SIZE))) App.pg.mine = 1;
+  const shown = list.slice(((App.pg.mine || 1) - 1) * SIZE, (App.pg.mine || 1) * SIZE);
+  box.innerHTML = kwBar + shown.map(r => mineRow(r)).join('') + (list.length > SIZE ? `<div class="pager">${pagerHTML('mine', App.pg.mine, list.length, SIZE)}</div>` : '');
 };
 
 /* 顶栏搜索：搜索单号 / 事由 / 项目编号 → 跳转我的单据并过滤 */
@@ -2017,6 +2021,7 @@ App.topSearch = function(v){
   if (!kw){ toast('请输入单号 / 事由 / 项目编号关键词', 'err'); return; }
   App.mineKw = kw;
   App.mineTab = 'all';
+  App.pg.mine = 1;
   App.go('mine');
 };
 App.clearMineKw = function(){
@@ -2036,7 +2041,7 @@ function mineRow(r){
       <div class="cr-type" style="background:${bg};color:${fg}">${t ? t.icon : ''}</div>
       <div class="cr-info">
         <b>${esc(r.reason || r.claimNo)}</b>
-        <div class="cr-sub"><span>${r.claimNo}</span><span>${r.typeLabel}</span><span>${fmtTime(r.createdAt)}</span></div>
+        <div class="cr-sub"><span>${r.claimNo}</span><span>${r.typeLabel}</span></div>
       </div>
       <div class="cr-amount">${r.amount != null ? money(r.amount) : '—'}</div>
       <div class="cr-status"><span class="tag ${st.cls}">${st.label}</span></div>
@@ -2058,7 +2063,7 @@ App.renderApproval = function(){
     ['cc', '抄送我的', 0]
   ];
   $('#approvalTabs').innerHTML = tabDefs.map(([k, l, n]) =>
-    `<button class="ftab ${App.approvalTab === k ? 'active' : ''}" onclick="App.approvalTab='${k}';App.renderApproval()">${l}<em>${n}</em></button>`).join('');
+    `<button class="ftab ${App.approvalTab === k ? 'active' : ''}" onclick="App.approvalTab='${k}';App.pg.appr=1;App.renderApproval()">${l}<em>${n}</em></button>`).join('');
 
   const box = $('#approvalList');
   box.className = 'claim-list';
@@ -2070,7 +2075,11 @@ App.renderApproval = function(){
     box.innerHTML = `<div class="empty"><div class="empty-ico">${IP.svg('todo')}</div>太棒了，所有待办都已处理</div>`;
     return;
   }
-  box.innerHTML = todos.map(r => {
+  // 分页：每页 10 条
+  const SIZE = 10;
+  if ((App.pg.appr || 1) > Math.max(1, Math.ceil(todos.length / SIZE))) App.pg.appr = 1;
+  const shown = todos.slice(((App.pg.appr || 1) - 1) * SIZE, (App.pg.appr || 1) * SIZE);
+  box.innerHTML = shown.map(r => {
     const t = TYPES[r.claimType];
     const [bg, fg] = COLORS[t ? t.color : 'blue'];
     return `<div class="claim-row">
@@ -2086,7 +2095,7 @@ App.renderApproval = function(){
         <svg class="cr-expand" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </div>
     </div>`;
-  }).join('');
+  }).join('') + (todos.length > SIZE ? `<div class="pager">${pagerHTML('appr', App.pg.appr, todos.length, SIZE)}</div>` : '');
 };
 
 /* 审批动作 */
@@ -2589,6 +2598,16 @@ App.closeDrawer = function(){
    ================================================================ */
 App.faPage = 1;
 App.faGo = function(p){ App.faPage = p; App.renderFinanceAll(); };
+App.pg = { mine: 1, appr: 1 };
+App.pgGo = function(scope, p){ App.pg[scope] = p; if (scope === 'mine') App.renderMine(); else App.renderApproval(); };
+function pagerHTML(scope, cur, total, size){
+  const pages = Math.max(1, Math.ceil(total / size));
+  if (cur > pages) cur = pages;
+  return `<span class="pg-info">共 ${total} 条 · 第 ${cur} / ${pages} 页</span>
+    <button ${cur === 1 ? 'disabled' : ''} onclick="App.pgGo('${scope}',${cur - 1})">上一页</button>
+    ${pageList(cur, pages).map(p => p === '…' ? '<span style="padding:0 2px">…</span>' : `<button class="${p === cur ? 'on' : ''}" onclick="App.pgGo('${scope}',${p})">${p}</button>`).join('')}
+    <button ${cur === pages ? 'disabled' : ''} onclick="App.pgGo('${scope}',${cur + 1})">下一页</button>`;
+}
 function pageList(cur, pages){
   if (pages <= 7) return Array.from({length: pages}, (_, i) => i + 1);
   const arr = [...new Set([1, pages, cur - 1, cur, cur + 1])].filter(p => p >= 1 && p <= pages).sort((a, b) => a - b);
