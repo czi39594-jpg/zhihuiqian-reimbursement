@@ -1060,8 +1060,20 @@ W.fillStep2 = function(){
           </select>
         </div>
         <div class="field-box"><label>收款账号（本人银行卡号，19 位） <em>*</em></label><input id="fPayeeAccount" inputmode="numeric" maxlength="19" placeholder="请输入 19 位银行卡号" value="${esc(masked)}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,19)"></div>
-      </div>
-      <p style="color:var(--ink-3);font-size:12px;margin-top:8px">报销金额将在下一步由费用明细自动汇总，由系统计算，无需手填。</p>`;
+      </div>`;
+    /* 自动绑卡：非编辑模式且本地存有上次使用的银行卡时自动带出 */
+    if (!W._editBank){
+      const saved = W.loadPayee();
+      if (saved){
+        const bk = $('#fPayeeBank'), ac = $('#fPayeeAccount');
+        if (bk && saved.bank && [...bk.options].some(o => o.value === saved.bank)) bk.value = saved.bank;
+        if (ac && !ac.value && /^\d{19}$/.test(saved.account || '')) ac.value = saved.account;
+        if ((bk && bk.value) || (ac && ac.value)){
+          const grid = $('#formExtra .form-grid');
+          if (grid) grid.insertAdjacentHTML('beforebegin', '<div class="payee-reuse">已自动填入您上次使用的收款银行与卡号，可修改</div>');
+        }
+      }
+    }
   }
   if (W.claimId) W.loadDraft();
   else W.restoreStep2();
@@ -1501,6 +1513,21 @@ W.buildPayload = function(){
   };
 };
 
+/* 收款银行卡记忆：提交成功后按账号存入本地，下次填差旅报销自动带出 */
+W.payeeKey = function(){ return 'zhx_payee_' + ((App.user && App.user.username) || ''); };
+W.loadPayee = function(){
+  try { return JSON.parse(localStorage.getItem(W.payeeKey()) || 'null'); } catch(e){ return null; }
+};
+W.savePayee = function(){
+  if (W.type !== 'TRAVEL_CLAIM') return;
+  const bk = $('#fPayeeBank'), ac = $('#fPayeeAccount');
+  if (!bk || !ac) return;
+  const bank = bk.value.trim(), acc = ac.value.trim();
+  if (bank && /^\d{19}$/.test(acc) && luhnValid(acc)){
+    try { localStorage.setItem(W.payeeKey(), JSON.stringify({ bank, account: acc })); } catch(e){}
+  }
+};
+
 /* ---- 分步校验：每一步「下一步」都做完整必填校验，未填满不允许进入下一步 ---- */
 /* 表单字段错误提示：在控件旁显示红字 + 控件红框 */
 W.fieldErr = function(selector, msg){
@@ -1705,6 +1732,7 @@ W.saveDraft = async function(silent){
 /* 演示模式：本地模拟提交，生成一条新单据 */
 W.mockSubmit = function(){
   const p = W.buildPayload();
+  W.savePayee();
   const isApply = W.type === 'TRAVEL_APPLY';
   const no = (isApply ? 'SQ-' : 'BX-') + new Date().getFullYear() + '-' + String(Date.now()).slice(-4);
   const reason = isApply ? p.reason : ($('#fReason').value.trim() || '差旅费用报销');
@@ -1745,6 +1773,7 @@ W.submit = async function(){
     const id = await W.saveDraft(true);
     const url = (W.type === 'TRAVEL_APPLY' ? '/api/applicant/travel-applies/' : '/api/applicant/travel-claims/') + id + '/submit';
     await post(url, {});
+    W.savePayee();
     toast('提交成功！单据已进入审批流程');
     W.reset();
     await App.refreshAll();
