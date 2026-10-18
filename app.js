@@ -2586,6 +2586,8 @@ App.closeDrawer = function(){
 /* ================================================================
    财务看板
    ================================================================ */
+App.archiveShowAll = false;
+App.toggleArchive = function(){ App.archiveShowAll = !App.archiveShowAll; App.renderFinance(); };
 App.renderFinance = function(){
   const rows = App.financeRows;
   // KPI（一期从列表计算，统计接口二期上线）
@@ -2607,9 +2609,12 @@ App.renderFinance = function(){
   $('#donutLegend').innerHTML = '';
   $('#chartDept').innerHTML = chartPlaceholder('部门 TOP5', '后端统计接口二期上线后展示');
 
-  // 归档表（后端 financeList 返回全部差旅报销，实时数据）
+  // 归档表：默认只显示最近 5 条，「查看全部」展开 / 收起（后端 financeList 实时数据）
+  const shown = App.archiveShowAll ? rows : rows.slice(0, 5);
+  const tg = $('#archiveToggle');
+  if (tg) tg.textContent = App.archiveShowAll ? '收起 ↑' : '查看全部 →';
   $('#archiveTable').innerHTML = `<thead><tr><th>单号</th><th>事由</th><th>申请人</th><th>金额</th><th>状态</th><th>提交时间</th></tr></thead>
-    <tbody>${rows.map(r => {
+    <tbody>${shown.map(r => {
       const st = STATUS[r.status] || { label: r.status, cls: 'tag-gray' };
       return `<tr onclick="App.openDrawer(${r.id})">
         <td>${r.claimNo}</td><td>${esc(r.reason || '')}</td><td>${esc(r.applicantName)}</td>
@@ -2617,9 +2622,11 @@ App.renderFinance = function(){
         <td><span class="tag ${st.cls}">${st.label}</span></td>
         <td>${fmtTime(r.createdAt)}</td></tr>`;
     }).join('')}</tbody>`;
+  const oldEmpty = $('#archiveEmpty');
+  if (oldEmpty) oldEmpty.remove();
   if (!rows.length){
     $('#archiveTable').innerHTML = `<thead><tr><th>单号</th><th>事由</th><th>申请人</th><th>金额</th><th>状态</th><th>提交时间</th></tr></thead><tbody></tbody>`;
-    $('#archiveTable').insertAdjacentHTML('afterend', '<div class="empty" style="margin-top:8px"><div class="empty-ico">' + IP.svg('grid') + '</div>暂无差旅报销单据</div>');
+    $('#archiveTable').insertAdjacentHTML('afterend', '<div class="empty" id="archiveEmpty" style="margin-top:8px"><div class="empty-ico">' + IP.svg('grid') + '</div>暂无差旅报销单据</div>');
   }
 };
 
