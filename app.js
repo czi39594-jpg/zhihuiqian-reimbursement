@@ -1012,7 +1012,6 @@ W.fillStep2 = function(){
   $('#fgDateStart').style.display = isApply ? '' : 'none';
   $('#fgDateEnd').style.display = isApply ? '' : 'none';
   $('#fgPlace').style.display = 'none';
-  $('#travelApply').style.display = 'none';
 
   // 项目下拉
   const sel = $('#fProject');
