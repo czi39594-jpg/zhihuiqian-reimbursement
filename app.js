@@ -655,6 +655,7 @@ App.go = function(page, skipDispatch){
   if (page === 'mine') App.renderMine();
   if (page === 'approval') App.renderApproval();
   if (page === 'finance') App.renderFinance();
+  if (page === 'financeAll') App.renderFinanceAll();
   if (page === 'ocr-debug') App.loadOcrDebug();
   if (page === 'create') App.startCreate();
 };
@@ -2586,8 +2587,21 @@ App.closeDrawer = function(){
 /* ================================================================
    财务看板
    ================================================================ */
-App.archiveShowAll = false;
-App.toggleArchive = function(){ App.archiveShowAll = !App.archiveShowAll; App.renderFinance(); };
+App.renderFinanceAll = function(){
+  const rows = App.financeRows;
+  $('#faCount').textContent = rows.length;
+  $('#faTable').innerHTML = `<thead><tr><th>单号</th><th>事由</th><th>申请人</th><th>金额</th><th>状态</th><th>提交时间</th></tr></thead>
+    <tbody>${rows.map(r => {
+      const st = STATUS[r.status] || { label: r.status, cls: 'tag-gray' };
+      return `<tr onclick="App.openDrawer(${r.id})">
+        <td>${r.claimNo}</td><td title="${esc(r.reason || '')}">${esc(r.reason || '')}</td><td>${esc(r.applicantName)}</td>
+        <td><b>${r.amount != null ? money(r.amount) : '—'}</b></td>
+        <td><span class="tag ${st.cls}">${st.label}</span></td>
+        <td>${fmtTime(r.createdAt)}</td></tr>`;
+    }).join('')}</tbody>`;
+  $('#faEmpty').style.display = rows.length ? 'none' : '';
+  if (!rows.length) $('#faEmpty').innerHTML = '<div class="empty-ico">' + IP.svg('grid') + '</div>暂无差旅报销单据';
+};
 App.renderFinance = function(){
   const rows = App.financeRows;
   // KPI（一期从列表计算，统计接口二期上线）
@@ -2609,10 +2623,8 @@ App.renderFinance = function(){
   $('#donutLegend').innerHTML = '';
   $('#chartDept').innerHTML = chartPlaceholder('部门报销统计将于二期上线');
 
-  // 归档表：默认只显示最近 5 条，「查看全部」展开 / 收起（后端 financeList 实时数据）
-  const shown = App.archiveShowAll ? rows : rows.slice(0, 5);
-  const tg = $('#archiveToggle');
-  if (tg) tg.textContent = App.archiveShowAll ? '收起 ↑' : '查看全部 →';
+  // 归档表：只显示最近 5 条，「查看全部」跳转全部单据页（后端 financeList 实时数据）
+  const shown = rows.slice(0, 5);
   $('#archiveTable').innerHTML = `<thead><tr><th>单号</th><th>事由</th><th>申请人</th><th>金额</th><th>状态</th><th>提交时间</th></tr></thead>
     <tbody>${shown.map(r => {
       const st = STATUS[r.status] || { label: r.status, cls: 'tag-gray' };
