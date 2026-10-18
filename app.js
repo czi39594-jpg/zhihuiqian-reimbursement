@@ -655,7 +655,11 @@ App.go = function(page, skipDispatch){
   if (page === 'mine') App.renderMine();
   if (page === 'approval') App.renderApproval();
   if (page === 'finance') App.renderFinance();
-  if (page === 'financeAll'){ App.faPage = 1; App.renderFinanceAll(); }
+  if (page === 'financeAll'){
+    App.faPage = 1; App.faTab = 'all'; App.faKw = '';
+    const fi = $('#faKwInp'); if (fi) fi.value = '';
+    App.renderFinanceAll();
+  }
   if (page === 'ocr-debug') App.loadOcrDebug();
   if (page === 'create') App.startCreate();
 };
@@ -2615,11 +2619,28 @@ function pageList(cur, pages){
   for (const p of arr){ if (p - prev > 1) out.push('…'); out.push(p); prev = p; }
   return out;
 }
+App.faTab = 'all';
+App.faKw = '';
+App.faSearch = function(v){
+  clearTimeout(App._faT);
+  App._faT = setTimeout(() => { App.faKw = (v || '').trim().toLowerCase(); App.faPage = 1; App.renderFinanceAll(); }, 250);
+};
 App.renderFinanceAll = function(){
-  const rows = (App.financeRows || []).slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const sorted = (App.financeRows || []).slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  // 关键词过滤（单号 / 事由 / 申请人）
+  let rows = sorted;
+  if (App.faKw) rows = rows.filter(r => [r.claimNo, r.reason, r.applicantName].some(v => String(v || '').toLowerCase().includes(App.faKw)));
+  // 状态 Tab（计数基于关键词过滤后的结果）
+  const tabDefs = [['all', '全部'], ['APPROVING', '审批中'], ['APPROVED', '已通过'], ['RETURNED', '已退回'], ['REJECTED', '已驳回'], ['DRAFT', '草稿']];
+  $('#faTabs').innerHTML = tabDefs.map(([k, l]) => {
+    const n = k === 'all' ? rows.length : rows.filter(r => r.status === k).length;
+    return `<button class="ftab ${App.faTab === k ? 'active' : ''}" onclick="App.faTab='${k}';App.faPage=1;App.renderFinanceAll()">${l}<em>${n}</em></button>`;
+  }).join('');
+  if (App.faTab !== 'all') rows = rows.filter(r => r.status === App.faTab);
   const SIZE = 10, total = rows.length, pages = Math.max(1, Math.ceil(total / SIZE));
   if (App.faPage > pages) App.faPage = pages;
   const shown = rows.slice((App.faPage - 1) * SIZE, App.faPage * SIZE);
+  const sum = rows.reduce((s, r) => s + (r.amount || 0), 0);
   $('#faCount').textContent = total;
   $('#faTable').innerHTML = `<thead><tr><th>单号</th><th>事由</th><th>申请人</th><th>金额</th><th>状态</th><th>提交时间</th></tr></thead>
     <tbody>${shown.map(r => {
@@ -2630,12 +2651,12 @@ App.renderFinanceAll = function(){
         <td><span class="tag ${st.cls}">${st.label}</span></td>
         <td>${fmtTime(r.createdAt)}</td></tr>`;
     }).join('')}</tbody>`;
-  $('#faPager').innerHTML = !total ? '' : `<span class="pg-info">共 ${total} 条 · 第 ${App.faPage} / ${pages} 页</span>
+  $('#faPager').innerHTML = !total ? '' : `<span class="pg-info">共 ${total} 笔 · 合计 ${money(sum)}</span>
     <button ${App.faPage === 1 ? 'disabled' : ''} onclick="App.faGo(${App.faPage - 1})">上一页</button>
     ${pageList(App.faPage, pages).map(p => p === '…' ? '<span style="padding:0 2px">…</span>' : `<button class="${p === App.faPage ? 'on' : ''}" onclick="App.faGo(${p})">${p}</button>`).join('')}
     <button ${App.faPage === pages ? 'disabled' : ''} onclick="App.faGo(${App.faPage + 1})">下一页</button>`;
   $('#faEmpty').style.display = total ? 'none' : '';
-  if (!total) $('#faEmpty').innerHTML = '<div class="empty-ico">' + IP.svg('grid') + '</div>暂无差旅报销单据';
+  if (!total) $('#faEmpty').innerHTML = '<div class="empty-ico">' + IP.svg('grid') + '</div>' + ((App.faKw || App.faTab !== 'all') ? '没有符合筛选条件的单据' : '暂无差旅报销单据');
 };
 App.renderFinance = function(){
   const rows = App.financeRows;
