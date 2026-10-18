@@ -393,15 +393,16 @@ svg{width:18px;height:18px;flex:none}
 .expense-total .et-amount.empty{color:var(--ink-3);font-size:14px;font-weight:500}
 /* 自动绑卡提示条 */
 .payee-reuse{margin:2px 0 14px;padding:8px 12px;border:1px solid #CFE0D7;background:#EFF5F1;border-radius:8px;font-size:12px;color:var(--primary)}
-/* 归档表：大厂风数据表 —— 固定布局、列宽合理、事由单行省略、金额右对齐 */
-#archiveTable th:first-child,#archiveTable td:first-child,#archiveTable th:last-child,#archiveTable td:last-child{white-space:nowrap}
-#archiveTable{table-layout:fixed}
-#archiveTable th:nth-child(1),#archiveTable td:nth-child(1){width:118px}
-#archiveTable th:nth-child(3),#archiveTable td:nth-child(3){width:84px}
-#archiveTable th:nth-child(4),#archiveTable td:nth-child(4){width:96px;text-align:right}
-#archiveTable th:nth-child(5),#archiveTable td:nth-child(5){width:78px}
-#archiveTable th:nth-child(6),#archiveTable td:nth-child(6){width:140px}
-#archiveTable td:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 归档表/全部单据表：大厂风数据表 —— 固定布局、列宽合理、事由单行省略、金额右对齐 */
+#archiveTable th:first-child,#archiveTable td:first-child,#archiveTable th:last-child,#archiveTable td:last-child,
+#faTable th:first-child,#faTable td:first-child,#faTable th:last-child,#faTable td:last-child{white-space:nowrap}
+#archiveTable,#faTable{table-layout:fixed}
+#archiveTable th:nth-child(1),#archiveTable td:nth-child(1),#faTable th:nth-child(1),#faTable td:nth-child(1){width:118px}
+#archiveTable th:nth-child(3),#archiveTable td:nth-child(3),#faTable th:nth-child(3),#faTable td:nth-child(3){width:84px}
+#archiveTable th:nth-child(4),#archiveTable td:nth-child(4),#faTable th:nth-child(4),#faTable td:nth-child(4){width:96px;text-align:right}
+#archiveTable th:nth-child(5),#archiveTable td:nth-child(5),#faTable th:nth-child(5),#faTable td:nth-child(5){width:78px}
+#archiveTable th:nth-child(6),#archiveTable td:nth-child(6),#faTable th:nth-child(6),#faTable td:nth-child(6){width:140px}
+#archiveTable td:nth-child(2),#faTable td:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .form-foot{display:flex;justify-content:flex-end;gap:10px;padding:8px 0}
 /* 步骤3 票据表单 */
 .btn-ocr{background:var(--primary-l);border:1px solid #CBDCD4;border-radius:8px;padding:7px 14px;font-size:13px;color:var(--primary);cursor:pointer;font-weight:600;white-space:nowrap;transition:.14s}
