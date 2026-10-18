@@ -2831,7 +2831,9 @@ App.notice = {
       $('#ndList').innerHTML = `<div class="nd-empty"><div class="nd-empty-ico">${IP.svg('mail')}</div><div>${tip}</div></div>`;
       return;
     }
-    $('#ndList').innerHTML = shown.map(({ n, i }) => `
+    const MAXN = 20;
+    const visible = shown.slice(0, MAXN);
+    $('#ndList').innerHTML = visible.map(({ n, i }) => `
       <div class="nd-item ${n.readFlag ? '' : 'unread'}" onclick="App.notice.openItem(${i})">
         <div class="nd-ico" style="background:${isTodo(n) ? '#F6EEDD' : '#E7EFEB'}">${isTodo(n) ? IP.svg('clipboard') : IP.svg('message')}</div>
         <div class="nd-body">
@@ -2839,7 +2841,7 @@ App.notice = {
           <div class="nd-desc">${esc(n.content || '')}</div>
           <div class="nd-time">${fmtTime(n.createdAt)}</div>
         </div>
-      </div>`).join('');
+      </div>`).join('') + (shown.length > MAXN ? `<div class="nd-more">仅显示最近 ${MAXN} 条，更早通知请在各业务列表中查看</div>` : '');
   },
   openItem(i){
     const n = this.list[i];
