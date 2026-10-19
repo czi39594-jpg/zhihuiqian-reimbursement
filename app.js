@@ -371,6 +371,7 @@ App.afterEnter = function(){
 /* 跳转我的单据（可携带默认状态 Tab，衔接来源页上下文） */
 App.goMine = function(tab){
   if (tab) App.mineTab = tab;
+  App.pg.mine = 1;
   App.go('mine');
 };
 
@@ -679,22 +680,22 @@ App.renderDashboard = function(){
   const rows = App.mineRows;
   const isAp = isApprover();
 
-  // 统计卡
+  // 统计卡（点击下钻到对应明细，标准 KPI 卡交互）
   const stats = isAp
     ? [
-        ['orange', IP.svg('remind'), '待我审批', App.todoRows.length + ' <small>笔</small>', App.todoRows.filter(r => r.timeout).length ? '<span style="color:var(--red)">' + App.todoRows.filter(r => r.timeout).length + ' 笔超时</span>' : ''],
-        ['blue', IP.svg('doc'), '我的单据', rows.length + ' <small>笔</small>', ''],
-        ['green', IP.svg('approved'), '已通过', rows.filter(r => r.status === 'APPROVED').length + ' <small>笔</small>', ''],
-        ['red', IP.svg('caution'), '退回 / 驳回', rows.filter(r => r.status === 'RETURNED' || r.status === 'REJECTED').length + ' <small>笔</small>', '']
+        ['orange', IP.svg('remind'), '待我审批', App.todoRows.length + ' <small>笔</small>', App.todoRows.filter(r => r.timeout).length ? '<span style="color:var(--red)">' + App.todoRows.filter(r => r.timeout).length + ' 笔超时</span>' : '', "App.go('approval')"],
+        ['blue', IP.svg('doc'), '我的单据', rows.length + ' <small>笔</small>', '', "App.goMine('all')"],
+        ['green', IP.svg('approved'), '已通过', rows.filter(r => r.status === 'APPROVED').length + ' <small>笔</small>', '', "App.goMine('APPROVED')"],
+        ['red', IP.svg('caution'), '退回 / 驳回', rows.filter(r => r.status === 'RETURNED' || r.status === 'REJECTED').length + ' <small>笔</small>', '', "App.goMine('RETURNED')"]
       ]
     : [
-        ['blue', IP.svg('doc'), '我的单据', rows.length + ' <small>笔</small>', ''],
-        ['orange', IP.svg('history'), '审批中', rows.filter(r => r.status === 'APPROVING').length + ' <small>笔</small>', ''],
-        ['green', IP.svg('approved'), '已通过', rows.filter(r => r.status === 'APPROVED').length + ' <small>笔</small>', ''],
-        ['red', IP.svg('caution'), '退回 / 驳回', rows.filter(r => r.status === 'RETURNED' || r.status === 'REJECTED').length + ' <small>笔</small>', '']
+        ['blue', IP.svg('doc'), '我的单据', rows.length + ' <small>笔</small>', '', "App.goMine('all')"],
+        ['orange', IP.svg('history'), '审批中', rows.filter(r => r.status === 'APPROVING').length + ' <small>笔</small>', '', "App.goMine('APPROVING')"],
+        ['green', IP.svg('approved'), '已通过', rows.filter(r => r.status === 'APPROVED').length + ' <small>笔</small>', '', "App.goMine('APPROVED')"],
+        ['red', IP.svg('caution'), '退回 / 驳回', rows.filter(r => r.status === 'RETURNED' || r.status === 'REJECTED').length + ' <small>笔</small>', '', "App.goMine('RETURNED')"]
       ];
-  $('#dashStats').innerHTML = stats.map(([c, ico, lab, val, trend]) => `
-    <div class="stat-card">
+  $('#dashStats').innerHTML = stats.map(([c, ico, lab, val, trend, go]) => `
+    <div class="stat-card" onclick="${go}" title="查看${lab}明细">
       <div class="sc-ico si-${c}" style="background:${COLORS[c][0]};color:${COLORS[c][1]}">${ico}</div>
       <div><div class="num">${val}</div><div class="lab">${lab} ${trend}</div></div>
     </div>`).join('');
@@ -754,6 +755,12 @@ App.renderDashboard = function(){
   // 列表区
   const sideList = isAp && App.todoRows.length ? App.todoRows : rows.filter(r => r.status === 'APPROVING');
   $('#dashListTitle').textContent = isAp && App.todoRows.length ? '待我审批' : '进行中的报销';
+  // 面板右上角链接跟随面板内容：待办 → 审批中心；进行中 → 我的单据
+  const dll = $('#dashListLink');
+  if (dll){
+    if (isAp && App.todoRows.length){ dll.textContent = '全部待办 →'; dll.onclick = function(){ App.go('approval'); }; }
+    else { dll.textContent = '全部单据 →'; dll.onclick = function(){ App.goMine('all'); }; }
+  }
   $('#dashList').innerHTML = sideList.length
     ? sideList.slice(0, 4).map(r => miniRow(r, isAp)).join('')
     : '<div class="empty" style="box-shadow:none"><div class="empty-ico">' + IP.svg('approved') + '</div>当前没有进行中的单据<button class="btn-ghost" style="margin-top:12px" onclick="App.seedDemo()">＋ 添加调试数据</button></div>';
