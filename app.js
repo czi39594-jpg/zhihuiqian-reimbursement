@@ -1,5 +1,5 @@
 /* ================================================================
-   智汇签 · 校园智能报销审批平台 —— 前端（对接后端一期 API）
+   校园智能报销审批平台 —— 前端（对接后端一期 API）
    A 阶段：接入 campus-reimburse 后端（Spring Boot）
    - 登录：CSRF + 图形验证码 + Session
    - 全类型报销闭环：出差申请 / 差旅报销 / 科研基金 / 采购 / 活动经费
@@ -2579,8 +2579,8 @@ App.mockExportPdf = function(id){
 <div class="wrap">
   <div class="hdr">
     <span class="status">${st.label}</span>
-    <h1>智汇签 · 报销单</h1>
-    <div class="sub">ZHIXIANG REIMBURSEMENT FORM</div>
+    <h1>校园智能报销审批平台 · 报销单</h1>
+    <div class="sub">CAMPUS REIMBURSEMENT FORM</div>
   </div>
   <div class="no-print"><button onclick="window.print()">🖨 打印 / 另存为 PDF</button></div>
   <table>
@@ -2596,7 +2596,7 @@ App.mockExportPdf = function(id){
   ${row.claimType !== 'TRAVEL_APPLY' ? `<div class="chain-step ${row.currentNode === 'FINANCE' ? 'current' : (row.status === 'APPROVED' ? 'done' : '')}"><span class="dot"></span><span class="label">财务复核</span><span class="who">陈会计</span></div>` : ''}
   ${row.status === 'APPROVED' ? `<div class="chain-step done"><span class="dot"></span><span class="label">已办结</span></div>` : ''}
   ${row.status === 'RETURNED' || row.status === 'REJECTED' ? `<div class="chain-step"><span class="dot" style="background:#B4463C;border-color:#B4463C"></span><span class="label">${row.status === 'RETURNED' ? '已退回' : '已驳回'}</span></div>` : ''}
-  <div class="foot">本单据由智汇签·校园智能报销审批平台生成 · 打印时间 ${fmtNow()}</div>
+  <div class="foot">本单据由校园智能报销审批平台生成 · 打印时间 ${fmtNow()}</div>
 </div>
 <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 300); };</script>
 </body></html>`;
