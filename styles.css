@@ -1,5 +1,5 @@
 /* ================================================================
-   智汇签 · 校园报销审批平台 —— 设计系统 v2
+   校园智能报销审批平台 —— 设计系统 v2
    方向：暖纸底 + 学院墨绿 + 赭石点缀（参考 uigradients 低饱和自然色系）
    图标：IconPark（icons.js）  图片：Pexels（assets/）
    原则：边框优先、少阴影、小圆角、无渐变横幅、无玻璃拟态
@@ -60,7 +60,7 @@ svg{width:18px;height:18px;flex:none}
 .login-brand{display:flex;align-items:baseline;gap:16px;margin-bottom:8px;position:relative;z-index:1}
 .brand-logo-lg{width:52px;height:52px;border:1.5px solid rgba(255,255,255,.55);border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.08);align-self:center}
 .brand-logo-lg svg{width:30px;height:30px}
-.login-brand h1{font-family:var(--serif);font-size:42px;font-weight:700;letter-spacing:8px;text-shadow:0 2px 12px rgba(0,0,0,.25)}
+.login-brand h1{font-family:var(--serif);font-size:30px;font-weight:700;letter-spacing:4px;text-shadow:0 2px 12px rgba(0,0,0,.25);white-space:nowrap}
 .login-brand p{letter-spacing:4px;font-size:13px;opacity:.85}
 .login-slogan{margin-top:52px;display:grid;gap:20px;position:relative;z-index:1;border-left:2px solid rgba(255,255,255,.28);padding-left:22px}
 .login-slogan li{font-size:14.5px;opacity:.92;display:flex;align-items:baseline;gap:10px}
