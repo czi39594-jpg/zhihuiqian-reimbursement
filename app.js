@@ -1070,7 +1070,7 @@ W.fillStep2 = function(){
             <option>浙江农商联合银行</option><option>网商银行</option><option>微众银行</option>
           </select>
         </div>
-        <div class="field-box"><label>收款账号（本人银行卡号，19 位） <em>*</em></label><input id="fPayeeAccount" inputmode="numeric" maxlength="19" placeholder="请输入 19 位银行卡号" value="${esc(masked)}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,19)"></div>
+        <div class="field-box"><label>收款账号（本人银行卡号，19 位） <em>*</em> <a class="mini-link" onclick="W.fillDemoCard()">填入演示卡号</a></label><input id="fPayeeAccount" inputmode="numeric" maxlength="19" placeholder="请输入 19 位银行卡号" value="${esc(masked)}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,19)"></div>
       </div>`;
     /* 自动绑卡：非编辑模式且本地存有上次使用的银行卡时自动带出 */
     if (!W._editBank){
@@ -1525,6 +1525,14 @@ W.buildPayload = function(){
 
 /* 收款银行卡记忆：提交成功后按账号存入本地，下次填差旅报销自动带出 */
 W.payeeKey = function(){ return 'zhx_payee_' + ((App.user && App.user.username) || ''); };
+/* 演示辅助：一键填入通过 Luhn 校验的测试卡号，便于测试走完整流程 */
+W.fillDemoCard = function(){
+  const ac = $('#fPayeeAccount');
+  if (!ac) return;
+  ac.value = '6222020200112233446';
+  ac.dispatchEvent(new Event('input', { bubbles: true }));
+  toast('已填入演示卡号，可直接继续流程（正式使用请填本人卡号）');
+};
 W.loadPayee = function(){
   try { return JSON.parse(localStorage.getItem(W.payeeKey()) || 'null'); } catch(e){ return null; }
 };
