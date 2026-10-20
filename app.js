@@ -889,6 +889,9 @@ W.reset = function(){
   W.persons = []; W.legs = []; W.expenses = []; W.invoices = [];
   W.preview = []; W._c = null;
   W._editBank = ''; W._editMasked = ''; W._editSourceApplyId = null;
+  // 步骤1恢复初始态：未选类型时「下一步」置灰
+  const ts2 = $('#toStep2');
+  if (ts2) ts2.disabled = true;
   // 清空静态的出差起止日期框，避免新单带上次残留 / 浏览器自动填充值
   ['#fgDateStart input', '#fgDateEnd input'].forEach(sel => {
     const el = document.querySelector(sel);
@@ -966,7 +969,9 @@ W.pick = function(type){
   if (TYPES[type] && TYPES[type].disabled) return;
   W.type = type;
   renderPickGrid();
-  W.goto(2);
+  // 仅选中，不跳转：由「下一步」按钮触发进入步骤2
+  const btn = $('#toStep2');
+  if (btn) btn.disabled = false;
 };
 
 /* 离开当前步骤前，把界面已填写内容缓存进状态（返回时回填，防丢失） */
@@ -1002,6 +1007,11 @@ W.goto = function(step){
     el.classList.toggle('done', s < step);
   });
   $$('.stepper .step-line').forEach((el, i) => el.classList.toggle('done', i + 1 < step));
+  // 回到步骤1时，若类型已选（如从步骤2返回）则保持「下一步」可用
+  if (step === 1){
+    const ts2 = $('#toStep2');
+    if (ts2) ts2.disabled = !W.type;
+  }
   if (step === 2) W.fillStep2();
   if (step === 3) W.fillStep3();
   if (step === 4) W.fillStep4();
