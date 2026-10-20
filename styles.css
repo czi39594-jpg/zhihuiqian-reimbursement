@@ -415,6 +415,8 @@ svg{width:18px;height:18px;flex:none}
 /* 全部单据页：关键词搜索框 */
 .fa-search{width:280px;border:1px solid var(--line-2);border-radius:7px;padding:7px 11px;font-size:13px;background:#fff;color:var(--ink)}
 .fa-search:focus{border-color:var(--primary);outline:none}
+/* 表单标签内的小型操作链接（如"填入演示卡号"） */
+.mini-link{margin-left:8px;font-size:12px;color:var(--primary);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .form-foot{display:flex;justify-content:flex-end;gap:10px;padding:8px 0}
 /* 步骤3 票据表单 */
 .btn-ocr{background:var(--primary-l);border:1px solid #CBDCD4;border-radius:8px;padding:7px 14px;font-size:13px;color:var(--primary);cursor:pointer;font-weight:600;white-space:nowrap;transition:.14s}
